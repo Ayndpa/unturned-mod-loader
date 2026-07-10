@@ -22,11 +22,17 @@
       "NoDescription": "No description"
     },
     "Locale": {
-      "Section": "Language",
       "Title": "Display Language",
       "Desc": "Choose the interface language for Mod Loader",
       "Zh": "简体中文",
       "En": "English"
+    },
+    "Theme": {
+      "Title": "Theme",
+      "Desc": "Choose light, dark, or match your system appearance",
+      "Light": "Light",
+      "Dark": "Dark",
+      "System": "System"
     },
     "Category": {
       "All": "All",
@@ -128,7 +134,7 @@
       "GameSection": "Game Folder",
       "AccountSection": "Account",
       "ApiSection": "API Connection",
-      "LanguageSection": "Language",
+      "AppearanceSection": "Appearance",
       "GameInstallTitle": "Game Install Folder",
       "GameInstallDesc": "Choose the folder containing Unturned.exe for launching the game and loading local mods.",
       "CurrentAccountTitle": "Current Account",

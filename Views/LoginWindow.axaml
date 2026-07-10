@@ -52,8 +52,8 @@
             <StackPanel Grid.Row="1" Spacing="16" VerticalAlignment="Center">
 
                 <Border IsVisible="{Binding HasError}"
-                        Background="#FFF5F5"
-                        BorderBrush="#FECACA"
+                        Background="{StaticResource ErrorBgBrush}"
+                        BorderBrush="{StaticResource ErrorBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
                         Padding="12,10">

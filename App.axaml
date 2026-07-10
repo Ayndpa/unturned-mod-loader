@@ -2,28 +2,54 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="UnturnedModLoader.App"
              xmlns:local="using:UnturnedModLoader"
-             RequestedThemeVariant="Light">
+             RequestedThemeVariant="Default">
 
     <Application.Resources>
-        <Color x:Key="BgCanvas">#f5f5f5</Color>
-        <Color x:Key="BgPaper">#ffffff</Color>
-        <Color x:Key="BgSurfaceAlt">#fafafa</Color>
-        <Color x:Key="Ink">#0a0a0a</Color>
-        <Color x:Key="InkSoft">#171717</Color>
-        <Color x:Key="MidGray">#737373</Color>
-        <Color x:Key="Hairline">#e5e5e5</Color>
-        <Color x:Key="Ember">#e7000b</Color>
-        <Color x:Key="Success">#166534</Color>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="BgCanvas">#f5f5f5</Color>
+                    <Color x:Key="BgPaper">#ffffff</Color>
+                    <Color x:Key="BgSurfaceAlt">#fafafa</Color>
+                    <Color x:Key="Ink">#0a0a0a</Color>
+                    <Color x:Key="InkSoft">#171717</Color>
+                    <Color x:Key="MidGray">#737373</Color>
+                    <Color x:Key="Hairline">#e5e5e5</Color>
+                    <Color x:Key="Ember">#e7000b</Color>
+                    <Color x:Key="Success">#166534</Color>
+                    <Color x:Key="ErrorBg">#fff5f5</Color>
+                    <Color x:Key="ErrorBorder">#fecaca</Color>
+                    <Color x:Key="LoadingOverlay">#99f5f5f5</Color>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="BgCanvas">#0a0a0a</Color>
+                    <Color x:Key="BgPaper">#171717</Color>
+                    <Color x:Key="BgSurfaceAlt">#141414</Color>
+                    <Color x:Key="Ink">#fafafa</Color>
+                    <Color x:Key="InkSoft">#f5f5f5</Color>
+                    <Color x:Key="MidGray">#a3a3a3</Color>
+                    <Color x:Key="Hairline">#262626</Color>
+                    <Color x:Key="Ember">#ff4d57</Color>
+                    <Color x:Key="Success">#22c55e</Color>
+                    <Color x:Key="ErrorBg">#2a1414</Color>
+                    <Color x:Key="ErrorBorder">#7f1d1d</Color>
+                    <Color x:Key="LoadingOverlay">#990a0a0a</Color>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
 
-        <SolidColorBrush x:Key="BgCanvasBrush" Color="{StaticResource BgCanvas}" />
-        <SolidColorBrush x:Key="BgPaperBrush" Color="{StaticResource BgPaper}" />
-        <SolidColorBrush x:Key="BgSurfaceAltBrush" Color="{StaticResource BgSurfaceAlt}" />
-        <SolidColorBrush x:Key="InkBrush" Color="{StaticResource Ink}" />
-        <SolidColorBrush x:Key="InkSoftBrush" Color="{StaticResource InkSoft}" />
-        <SolidColorBrush x:Key="MidGrayBrush" Color="{StaticResource MidGray}" />
-        <SolidColorBrush x:Key="HairlineBrush" Color="{StaticResource Hairline}" />
-        <SolidColorBrush x:Key="EmberBrush" Color="{StaticResource Ember}" />
-        <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource Success}" />
+            <SolidColorBrush x:Key="BgCanvasBrush" Color="{DynamicResource BgCanvas}" />
+            <SolidColorBrush x:Key="BgPaperBrush" Color="{DynamicResource BgPaper}" />
+            <SolidColorBrush x:Key="BgSurfaceAltBrush" Color="{DynamicResource BgSurfaceAlt}" />
+            <SolidColorBrush x:Key="InkBrush" Color="{DynamicResource Ink}" />
+            <SolidColorBrush x:Key="InkSoftBrush" Color="{DynamicResource InkSoft}" />
+            <SolidColorBrush x:Key="MidGrayBrush" Color="{DynamicResource MidGray}" />
+            <SolidColorBrush x:Key="HairlineBrush" Color="{DynamicResource Hairline}" />
+            <SolidColorBrush x:Key="EmberBrush" Color="{DynamicResource Ember}" />
+            <SolidColorBrush x:Key="SuccessBrush" Color="{DynamicResource Success}" />
+            <SolidColorBrush x:Key="ErrorBgBrush" Color="{DynamicResource ErrorBg}" />
+            <SolidColorBrush x:Key="ErrorBorderBrush" Color="{DynamicResource ErrorBorder}" />
+            <SolidColorBrush x:Key="LoadingOverlayBrush" Color="{DynamicResource LoadingOverlay}" />
+        </ResourceDictionary>
     </Application.Resources>
 
     <Application.DataTemplates>

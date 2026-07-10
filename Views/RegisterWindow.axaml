@@ -53,8 +53,8 @@
                 <StackPanel Spacing="14">
 
                     <Border IsVisible="{Binding HasError}"
-                            Background="#FFF5F5"
-                            BorderBrush="#FECACA"
+                            Background="{StaticResource ErrorBgBrush}"
+                            BorderBrush="{StaticResource ErrorBorderBrush}"
                             BorderThickness="1"
                             CornerRadius="8"
                             Padding="12,10">

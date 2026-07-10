@@ -19,6 +19,9 @@ public class AppSettings
     /// <summary>UI locale: <c>zh</c> or <c>en</c>.</summary>
     public string Locale { get; set; } = "";
 
+    /// <summary>Theme preference: <c>light</c>, <c>dark</c>, or <c>system</c>.</summary>
+    public string Theme { get; set; } = "";
+
     public bool IsLoggedIn =>
         !string.IsNullOrWhiteSpace(AuthToken) && UserId.HasValue;
 }

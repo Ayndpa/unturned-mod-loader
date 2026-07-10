@@ -28,6 +28,7 @@ public partial class App : Application
                 settings.Locale = LocalizationService.DetectDefaultLocaleCode();
 
             LocalizationService.Initialize(settings);
+            ThemeService.Initialize(settings);
 
             if (!settings.OnboardingCompleted)
                 ShowOnboarding(desktop, settingsService, settings);

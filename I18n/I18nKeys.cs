@@ -22,11 +22,19 @@ public static class Common
 
 public static class LocaleKeys
 {
-    public const string Section = "Localization.Locale.Section";
     public const string Title = "Localization.Locale.Title";
     public const string Desc = "Localization.Locale.Desc";
     public const string Zh = "Localization.Locale.Zh";
     public const string En = "Localization.Locale.En";
+}
+
+public static class ThemeKeys
+{
+    public const string Title = "Localization.Theme.Title";
+    public const string Desc = "Localization.Theme.Desc";
+    public const string Light = "Localization.Theme.Light";
+    public const string Dark = "Localization.Theme.Dark";
+    public const string System = "Localization.Theme.System";
 }
 
 public static class Category
@@ -144,7 +152,7 @@ public static class Settings
     public const string GameSection = "Localization.Settings.GameSection";
     public const string AccountSection = "Localization.Settings.AccountSection";
     public const string ApiSection = "Localization.Settings.ApiSection";
-    public const string LanguageSection = "Localization.Settings.LanguageSection";
+    public const string AppearanceSection = "Localization.Settings.AppearanceSection";
     public const string GameInstallTitle = "Localization.Settings.GameInstallTitle";
     public const string GameInstallDesc = "Localization.Settings.GameInstallDesc";
     public const string CurrentAccountTitle = "Localization.Settings.CurrentAccountTitle";

@@ -182,7 +182,7 @@
                 <Panel Grid.Row="1">
 
                     <Border IsVisible="{Binding IsLoading}"
-                            Background="#99F5F5F5"
+                            Background="{StaticResource LoadingOverlayBrush}"
                             CornerRadius="12"
                             ZIndex="2">
                         <StackPanel Spacing="12"

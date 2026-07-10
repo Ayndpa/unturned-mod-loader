@@ -82,12 +82,12 @@
                         </StackPanel>
                     </Button>
                     <Button Classes="sidebar"
-                            Classes.selected="{Binding IsLanguageSection}"
+                            Classes.selected="{Binding IsAppearanceSection}"
                             Command="{Binding SelectSectionCommand}"
-                            CommandParameter="language">
+                            CommandParameter="appearance">
                         <StackPanel Orientation="Horizontal" Spacing="10">
-                            <LucideIcon Kind="Languages" Size="16" Foreground="{StaticResource MidGrayBrush}" />
-                            <TextBlock Text="{c:I18n {x:Static i18n:Settings.LanguageSection}}" VerticalAlignment="Center" />
+                            <LucideIcon Kind="SunMoon" Size="16" Foreground="{StaticResource MidGrayBrush}" />
+                            <TextBlock Text="{c:I18n {x:Static i18n:Settings.AppearanceSection}}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -308,34 +308,76 @@
                             </Button>
                         </StackPanel>
 
-                        <StackPanel IsVisible="{Binding IsLanguageSection}" Spacing="14">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="{c:I18n {x:Static i18n:LocaleKeys.Title}}"
-                                           FontSize="15"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource InkBrush}" />
-                                <TextBlock Text="{c:I18n {x:Static i18n:LocaleKeys.Desc}}"
-                                           FontSize="12"
-                                           Foreground="{StaticResource MidGrayBrush}"
-                                           TextWrapping="Wrap"
-                                           LineHeight="18" />
+                        <StackPanel IsVisible="{Binding IsAppearanceSection}" Spacing="20">
+                            <StackPanel Spacing="14">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="{c:I18n {x:Static i18n:ThemeKeys.Title}}"
+                                               FontSize="15"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="{c:I18n {x:Static i18n:ThemeKeys.Desc}}"
+                                               FontSize="12"
+                                               Foreground="{StaticResource MidGrayBrush}"
+                                               TextWrapping="Wrap"
+                                               LineHeight="18" />
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Classes="sidebar"
+                                            Classes.selected="{Binding IsLightThemeSelected}"
+                                            Command="{Binding SelectThemeCommand}"
+                                            CommandParameter="light"
+                                            Padding="14,10">
+                                        <TextBlock Text="{c:I18n {x:Static i18n:ThemeKeys.Light}}" />
+                                    </Button>
+                                    <Button Classes="sidebar"
+                                            Classes.selected="{Binding IsDarkThemeSelected}"
+                                            Command="{Binding SelectThemeCommand}"
+                                            CommandParameter="dark"
+                                            Padding="14,10">
+                                        <TextBlock Text="{c:I18n {x:Static i18n:ThemeKeys.Dark}}" />
+                                    </Button>
+                                    <Button Classes="sidebar"
+                                            Classes.selected="{Binding IsSystemThemeSelected}"
+                                            Command="{Binding SelectThemeCommand}"
+                                            CommandParameter="system"
+                                            Padding="14,10">
+                                        <TextBlock Text="{c:I18n {x:Static i18n:ThemeKeys.System}}" />
+                                    </Button>
+                                </StackPanel>
                             </StackPanel>
 
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button Classes="sidebar"
-                                        Classes.selected="{Binding IsZhLocaleSelected}"
-                                        Command="{Binding SelectLocaleCommand}"
-                                        CommandParameter="zh"
-                                        Padding="14,10">
-                                    <TextBlock Text="{c:I18n {x:Static i18n:LocaleKeys.Zh}}" />
-                                </Button>
-                                <Button Classes="sidebar"
-                                        Classes.selected="{Binding IsEnLocaleSelected}"
-                                        Command="{Binding SelectLocaleCommand}"
-                                        CommandParameter="en"
-                                        Padding="14,10">
-                                    <TextBlock Text="{c:I18n {x:Static i18n:LocaleKeys.En}}" />
-                                </Button>
+                            <Border Height="1" Background="{StaticResource HairlineBrush}" />
+
+                            <StackPanel Spacing="14">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="{c:I18n {x:Static i18n:LocaleKeys.Title}}"
+                                               FontSize="15"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="{c:I18n {x:Static i18n:LocaleKeys.Desc}}"
+                                               FontSize="12"
+                                               Foreground="{StaticResource MidGrayBrush}"
+                                               TextWrapping="Wrap"
+                                               LineHeight="18" />
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Classes="sidebar"
+                                            Classes.selected="{Binding IsZhLocaleSelected}"
+                                            Command="{Binding SelectLocaleCommand}"
+                                            CommandParameter="zh"
+                                            Padding="14,10">
+                                        <TextBlock Text="{c:I18n {x:Static i18n:LocaleKeys.Zh}}" />
+                                    </Button>
+                                    <Button Classes="sidebar"
+                                            Classes.selected="{Binding IsEnLocaleSelected}"
+                                            Command="{Binding SelectLocaleCommand}"
+                                            CommandParameter="en"
+                                            Padding="14,10">
+                                        <TextBlock Text="{c:I18n {x:Static i18n:LocaleKeys.En}}" />
+                                    </Button>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
                     </Panel>

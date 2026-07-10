@@ -66,15 +66,21 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     private string _selectedLocale = "zh";
 
+    [ObservableProperty]
+    private string _selectedTheme = "system";
+
     public string CurrentApiEndpoint => _modsApi.BaseUrl;
     public IReadOnlyList<string> ApiProviderOptions { get; } = ["Local", "Cloud"];
     public IReadOnlyList<string> LocaleOptions { get; } = ["zh", "en"];
     public bool IsZhLocaleSelected => SelectedLocale == "zh";
     public bool IsEnLocaleSelected => SelectedLocale == "en";
+    public bool IsLightThemeSelected => SelectedTheme == "light";
+    public bool IsDarkThemeSelected => SelectedTheme == "dark";
+    public bool IsSystemThemeSelected => SelectedTheme == "system";
     public bool IsGameSection => SelectedSection == "game";
     public bool IsAccountSection => SelectedSection == "account";
     public bool IsApiSection => SelectedSection == "api";
-    public bool IsLanguageSection => SelectedSection == "language";
+    public bool IsAppearanceSection => SelectedSection == "appearance";
 
     public event Action? CloseRequested;
     public event Action? LogoutRequested;
@@ -100,6 +106,7 @@ public partial class SettingsViewModel : ViewModelBase
         _selectedLocale = string.IsNullOrWhiteSpace(settings.Locale)
             ? LocalizationService.DetectDefaultLocaleCode()
             : settings.Locale;
+        _selectedTheme = ThemeService.NormalizePreference(settings.Theme);
 
         UpdateGamePathStatus();
         _ = LoadAccountAsync();
@@ -136,6 +143,16 @@ public partial class SettingsViewModel : ViewModelBase
 
         SelectedLocale = localeCode;
         LocalizationService.ApplyLocale(localeCode, _settings, _settingsService);
+    }
+
+    [RelayCommand]
+    private void SelectTheme(string theme)
+    {
+        if (theme is not ("light" or "dark" or "system") || theme == SelectedTheme)
+            return;
+
+        SelectedTheme = theme;
+        ThemeService.ApplyPreference(theme, _settings, _settingsService);
     }
 
     [RelayCommand]
@@ -303,12 +320,19 @@ public partial class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsEnLocaleSelected));
     }
 
+    partial void OnSelectedThemeChanged(string value)
+    {
+        OnPropertyChanged(nameof(IsLightThemeSelected));
+        OnPropertyChanged(nameof(IsDarkThemeSelected));
+        OnPropertyChanged(nameof(IsSystemThemeSelected));
+    }
+
     partial void OnSelectedSectionChanged(string value)
     {
         OnPropertyChanged(nameof(IsGameSection));
         OnPropertyChanged(nameof(IsAccountSection));
         OnPropertyChanged(nameof(IsApiSection));
-        OnPropertyChanged(nameof(IsLanguageSection));
+        OnPropertyChanged(nameof(IsAppearanceSection));
     }
 
     partial void OnGamePathChanged(string value)

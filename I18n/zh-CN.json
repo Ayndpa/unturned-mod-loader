@@ -22,11 +22,17 @@
       "NoDescription": "暂无描述"
     },
     "Locale": {
-      "Section": "显示语言",
       "Title": "界面语言",
       "Desc": "选择 Mod Loader 的界面显示语言",
       "Zh": "简体中文",
       "En": "English"
+    },
+    "Theme": {
+      "Title": "主题模式",
+      "Desc": "选择浅色、深色或跟随系统外观",
+      "Light": "浅色",
+      "Dark": "深色",
+      "System": "跟随系统"
     },
     "Category": {
       "All": "全部",
@@ -128,7 +134,7 @@
       "GameSection": "游戏目录",
       "AccountSection": "账号管理",
       "ApiSection": "API 连接",
-      "LanguageSection": "显示语言",
+      "AppearanceSection": "外观",
       "GameInstallTitle": "游戏安装目录",
       "GameInstallDesc": "请选择包含 Unturned.exe 的文件夹，用于启动游戏与加载本地模组。",
       "CurrentAccountTitle": "当前账号",
