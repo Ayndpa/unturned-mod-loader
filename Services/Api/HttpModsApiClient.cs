@@ -23,6 +23,16 @@ public sealed class HttpModsApiClient : IModsApiClient, IDisposable
         };
     }
 
+    public HttpModsApiClient(HttpClient httpClient)
+    {
+        ArgumentNullException.ThrowIfNull(httpClient);
+        if (httpClient.BaseAddress is not Uri baseAddress)
+            throw new ArgumentException("HttpClient.BaseAddress must be set.", nameof(httpClient));
+
+        BaseUrl = baseAddress.AbsoluteUri.TrimEnd('/');
+        _http = httpClient;
+    }
+
     public string BaseUrl { get; }
 
     public async Task<ModsListResult> GetModsAsync(

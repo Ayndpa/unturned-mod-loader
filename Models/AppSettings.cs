@@ -10,4 +10,12 @@ public class AppSettings
 
     public string LocalApiBaseUrl { get; set; } = "http://localhost:3000";
     public string CloudApiBaseUrl { get; set; } = "";
+
+    public string? AuthToken { get; set; }
+    public int? UserId { get; set; }
+    public string? Username { get; set; }
+    public string? UserRole { get; set; }
+
+    public bool IsLoggedIn =>
+        !string.IsNullOrWhiteSpace(AuthToken) && UserId.HasValue;
 }

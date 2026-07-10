@@ -57,6 +57,7 @@ public partial class MainViewModel : ViewModelBase
 
     public int EnabledCount => Mods.Count(m => m.IsEnabled);
     public int TotalCount => Mods.Count;
+    public string Username => _settings.Username ?? "";
 
     public bool ShowPackageEmptyIcon => IsEmpty && !IsErrorState && !IsSearchEmpty;
     public bool ShowSearchEmptyIcon => IsEmpty && IsSearchEmpty && !IsErrorState;

@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using UnturnedModLoader.Models;
@@ -26,7 +27,7 @@ public partial class App : Application
             if (!settings.OnboardingCompleted)
                 ShowOnboarding(desktop, settingsService, settings);
             else
-                ShowMainWindow(desktop, settingsService, settings);
+                ShowLogin(desktop, settingsService, settings);
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -43,9 +44,7 @@ public partial class App : Application
 
         viewModel.Completed += completedSettings =>
         {
-            var mainWindow = CreateMainWindow(settingsService, completedSettings);
-            desktop.MainWindow = mainWindow;
-            mainWindow.Show();
+            ShowLogin(desktop, settingsService, completedSettings);
             onboardingWindow.Close();
         };
 
@@ -53,21 +52,71 @@ public partial class App : Application
         desktop.MainWindow = onboardingWindow;
     }
 
-    private static void ShowMainWindow(
+    private static void ShowLogin(
         IClassicDesktopStyleApplicationLifetime desktop,
         SettingsService settingsService,
         AppSettings settings)
     {
-        var mainWindow = CreateMainWindow(settingsService, settings);
-        desktop.MainWindow = mainWindow;
+        var api = new ApiClientBundle(settings);
+        var session = new AuthSessionService(api, settingsService, settings);
+        var loginWindow = new LoginWindow();
+        var viewModel = new LoginViewModel(session, settings);
+
+        viewModel.LoggedIn += loggedInSettings =>
+        {
+            var mainWindow = CreateMainWindow(settingsService, loggedInSettings, api);
+            desktop.MainWindow = mainWindow;
+            mainWindow.Show();
+            loginWindow.Close();
+        };
+
+        viewModel.RegisterRequested += () =>
+        {
+            ShowRegister(desktop, settingsService, settings, api, loginWindow);
+        };
+
+        loginWindow.DataContext = viewModel;
+        desktop.MainWindow = loginWindow;
+        loginWindow.Show();
     }
 
-    private static MainWindow CreateMainWindow(SettingsService settingsService, AppSettings settings)
+    private static void ShowRegister(
+        IClassicDesktopStyleApplicationLifetime desktop,
+        SettingsService settingsService,
+        AppSettings settings,
+        ApiClientBundle api,
+        Window loginWindow)
+    {
+        var session = new AuthSessionService(api, settingsService, settings);
+        var registerWindow = new RegisterWindow();
+        var viewModel = new RegisterViewModel(session, settings);
+
+        viewModel.Registered += registeredSettings =>
+        {
+            var mainWindow = CreateMainWindow(settingsService, registeredSettings, api);
+            desktop.MainWindow = mainWindow;
+            mainWindow.Show();
+            registerWindow.Close();
+            loginWindow.Close();
+        };
+
+        viewModel.LoginRequested += () =>
+        {
+            registerWindow.Close();
+        };
+
+        registerWindow.DataContext = viewModel;
+        registerWindow.Show();
+    }
+
+    private static MainWindow CreateMainWindow(
+        SettingsService settingsService,
+        AppSettings settings,
+        ApiClientBundle api)
     {
         var mainWindow = new MainWindow();
         var folderPicker = new FolderPickerService(mainWindow);
-        var modsApi = ModsApiClientFactory.Create(settings);
-        mainWindow.DataContext = new MainViewModel(settingsService, settings, folderPicker, modsApi);
+        mainWindow.DataContext = new MainViewModel(settingsService, settings, folderPicker, api.Mods);
         return mainWindow;
     }
 }

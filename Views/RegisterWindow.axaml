@@ -1,0 +1,150 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:UnturnedModLoader.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        d:DesignWidth="480" d:DesignHeight="600"
+        x:Class="UnturnedModLoader.Views.RegisterWindow"
+        x:DataType="vm:RegisterViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="注册 - Unturned Mod Loader"
+        Width="480" Height="600"
+        MinWidth="420" MinHeight="560"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BgCanvasBrush}">
+
+    <Border Margin="24"
+            Background="{StaticResource BgPaperBrush}"
+            BorderBrush="{StaticResource HairlineBrush}"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="32,28">
+        <Grid RowDefinitions="Auto,*,Auto">
+
+            <StackPanel Grid.Row="0" Spacing="10" Margin="0,0,0,20" HorizontalAlignment="Center">
+                <Border Width="48" Height="48"
+                        CornerRadius="12"
+                        Background="{StaticResource InkBrush}"
+                        HorizontalAlignment="Center">
+                    <LucideIcon Kind="UserPlus"
+                                Size="24"
+                                Foreground="{StaticResource BgPaperBrush}"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                </Border>
+                <TextBlock Text="创建账号"
+                           FontSize="20"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource InkBrush}"
+                           HorizontalAlignment="Center" />
+                <TextBlock Text="注册后即可使用云端模组与个人功能"
+                           FontSize="13"
+                           Foreground="{StaticResource MidGrayBrush}"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"
+                           MaxWidth="320" />
+            </StackPanel>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="14">
+
+                    <Border IsVisible="{Binding HasError}"
+                            Background="#FFF5F5"
+                            BorderBrush="#FECACA"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12,10">
+                        <TextBlock Text="{Binding ErrorMessage}"
+                                   FontSize="12"
+                                   Foreground="{StaticResource EmberBrush}"
+                                   TextWrapping="Wrap" />
+                    </Border>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="用户名"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource MidGrayBrush}" />
+                        <TextBox Text="{Binding Username}"
+                                 PlaceholderText="3–32 位字母、数字或下划线"
+                                 IsEnabled="{Binding !IsBusy}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="邮箱"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource MidGrayBrush}" />
+                        <TextBox Text="{Binding Email}"
+                                 PlaceholderText="name@example.com"
+                                 IsEnabled="{Binding !IsBusy}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="密码"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource MidGrayBrush}" />
+                        <TextBox Text="{Binding Password}"
+                                 PasswordChar="●"
+                                 PlaceholderText="至少 6 位"
+                                 IsEnabled="{Binding !IsBusy}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="确认密码"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource MidGrayBrush}" />
+                        <TextBox Text="{Binding ConfirmPassword}"
+                                 PasswordChar="●"
+                                 PlaceholderText="再次输入密码"
+                                 IsEnabled="{Binding !IsBusy}" />
+                    </StackPanel>
+
+                    <Button Classes="primary"
+                            Command="{Binding RegisterCommand}"
+                            IsEnabled="{Binding !IsBusy}"
+                            HorizontalAlignment="Stretch"
+                            Padding="0,10"
+                            Margin="0,4,0,0">
+                        <Panel>
+                            <TextBlock Text="注册"
+                                       HorizontalAlignment="Center"
+                                       IsVisible="{Binding !IsBusy}" />
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="8"
+                                        HorizontalAlignment="Center"
+                                        IsVisible="{Binding IsBusy}">
+                                <LucideIcon Kind="Loader"
+                                            Size="16"
+                                            Classes="loader"
+                                            Foreground="{StaticResource BgPaperBrush}" />
+                                <TextBlock Text="注册中…"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Panel>
+                    </Button>
+                </StackPanel>
+            </ScrollViewer>
+
+            <StackPanel Grid.Row="2"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        Spacing="4"
+                        Margin="0,20,0,0">
+                <TextBlock Text="已有账号？"
+                           FontSize="13"
+                           Foreground="{StaticResource MidGrayBrush}"
+                           VerticalAlignment="Center" />
+                <Button Classes="ghost"
+                        Content="返回登录"
+                        Command="{Binding GoToLoginCommand}"
+                        IsEnabled="{Binding !IsBusy}"
+                        Padding="6,4" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>
