@@ -1,6 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:UnturnedModLoader.ViewModels"
+        xmlns:i18n="using:UnturnedModLoader.I18n"
+        xmlns:c="https://codewf.com"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -8,7 +10,7 @@
         x:Class="UnturnedModLoader.Views.OnboardingWindow"
         x:DataType="vm:OnboardingViewModel"
         Icon="/Assets/avalonia-logo.ico"
-        Title="欢迎使用 Unturned Mod Loader"
+        Title="{c:I18n {x:Static i18n:Onboarding.Title}}"
         Width="560" Height="480"
         MinWidth="480" MinHeight="420"
         CanResize="False"
@@ -23,7 +25,6 @@
             Padding="32,28">
         <Grid RowDefinitions="Auto,*,Auto">
 
-            <!-- Header -->
             <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,24">
                 <StackPanel Orientation="Horizontal" Spacing="10">
                     <Border Width="32" Height="32"
@@ -35,7 +36,7 @@
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center" />
                     </Border>
-                    <TextBlock Text="新手引导"
+                    <TextBlock Text="{c:I18n {x:Static i18n:Onboarding.Header}}"
                                FontSize="18"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource InkBrush}"
@@ -46,47 +47,44 @@
                            Foreground="{StaticResource MidGrayBrush}" />
             </StackPanel>
 
-            <!-- Step content -->
             <Panel Grid.Row="1">
 
-                <!-- Step 0: Welcome -->
                 <StackPanel IsVisible="{Binding IsWelcomeStep}" Spacing="14" VerticalAlignment="Center">
-                    <TextBlock Text="欢迎使用 Unturned Mod Loader"
+                    <TextBlock Text="{c:I18n {x:Static i18n:Onboarding.WelcomeTitle}}"
                                FontSize="22"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource InkBrush}" />
-                    <TextBlock Text="本工具可帮助你管理 Unturned 模组，并在启动游戏时自动加载已启用的模组。"
+                    <TextBlock Text="{c:I18n {x:Static i18n:Onboarding.WelcomeDesc1}}"
                                FontSize="14"
                                Foreground="{StaticResource MidGrayBrush}"
                                TextWrapping="Wrap"
                                LineHeight="22" />
-                    <TextBlock Text="首次使用建议设置游戏安装目录。我们会尝试通过 Steam 自动检测，你也可以手动选择，或稍后再配置。"
+                    <TextBlock Text="{c:I18n {x:Static i18n:Onboarding.WelcomeDesc2}}"
                                FontSize="14"
                                Foreground="{StaticResource MidGrayBrush}"
                                TextWrapping="Wrap"
                                LineHeight="22" />
                 </StackPanel>
 
-                <!-- Step 1: Game path -->
                 <StackPanel IsVisible="{Binding IsGamePathStep}" Spacing="16">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="设置游戏目录"
+                        <TextBlock Text="{c:I18n {x:Static i18n:Onboarding.GamePathTitle}}"
                                    FontSize="18"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource InkBrush}" />
-                        <TextBlock Text="请选择包含 Unturned.exe 的游戏安装文件夹。也可以点击「跳过」，稍后在主界面配置。"
+                        <TextBlock Text="{c:I18n {x:Static i18n:Onboarding.GamePathDesc}}"
                                    FontSize="13"
                                    Foreground="{StaticResource MidGrayBrush}"
                                    TextWrapping="Wrap" />
                     </StackPanel>
 
                     <StackPanel Spacing="8">
-                        <TextBlock Text="游戏路径"
+                        <TextBlock Text="{c:I18n {x:Static i18n:Onboarding.GamePathLabel}}"
                                    FontSize="12"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource MidGrayBrush}" />
                         <TextBox Text="{Binding GamePath}"
-                                 PlaceholderText="例如：C:\Program Files (x86)\Steam\steamapps\common\Unturned" />
+                                 PlaceholderText="{c:I18n {x:Static i18n:Onboarding.GamePathPlaceholder}}" />
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Spacing="8">
@@ -95,13 +93,13 @@
                                 IsEnabled="{Binding !IsDetecting}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <LucideIcon Kind="ScanSearch" Size="16" />
-                                <TextBlock Text="自动检测" VerticalAlignment="Center" />
+                                <TextBlock Text="{c:I18n {x:Static i18n:Common.AutoDetect}}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                         <Button Classes="iconText" Command="{Binding BrowseCommand}">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <LucideIcon Kind="FolderOpen" Size="16" />
-                                <TextBlock Text="浏览…" VerticalAlignment="Center" />
+                                <TextBlock Text="{c:I18n {x:Static i18n:Common.Browse}}" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -121,25 +119,24 @@
                 </StackPanel>
             </Panel>
 
-            <!-- Footer -->
             <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Margin="0,24,0,0">
                 <Button Grid.Column="0"
                         Classes="ghost"
-                        Content="上一步"
+                        Content="{c:I18n {x:Static i18n:Common.Back}}"
                         Command="{Binding BackCommand}"
                         IsVisible="{Binding IsGamePathStep}" />
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                    <Button Content="跳过"
+                    <Button Content="{c:I18n {x:Static i18n:Common.Skip}}"
                             Classes="ghost"
                             Command="{Binding SkipCommand}"
                             Padding="12,8" />
-                    <Button Content="下一步"
+                    <Button Content="{c:I18n {x:Static i18n:Common.Next}}"
                             Classes="primary"
                             Command="{Binding NextCommand}"
                             IsVisible="{Binding IsWelcomeStep}"
                             Padding="20,8" />
-                    <Button Content="完成设置"
+                    <Button Content="{c:I18n {x:Static i18n:Onboarding.Finish}}"
                             Classes="primary"
                             Command="{Binding FinishCommand}"
                             IsVisible="{Binding IsGamePathStep}"

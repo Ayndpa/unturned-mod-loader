@@ -1,8 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using UnturnedModLoader.I18n;
 using UnturnedModLoader.Models;
 using UnturnedModLoader.Services;
-using UnturnedModLoader.Services.Api;
 
 namespace UnturnedModLoader.ViewModels;
 
@@ -29,7 +29,9 @@ public partial class LoginViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isCheckingSession;
 
-    public string BusyText => IsCheckingSession ? "正在恢复登录状态…" : "登录中…";
+    public string BusyText => IsCheckingSession
+        ? L.Get(Login.RestoringSession)
+        : L.Get(Login.LoggingIn);
 
     public event Action<AppSettings>? LoggedIn;
     public event Action? RegisterRequested;
@@ -46,7 +48,7 @@ public partial class LoginViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
         {
-            ShowError("请填写用户名和密码。");
+            ShowError(L.Get(Login.CredentialsRequired));
             return;
         }
 
@@ -58,7 +60,7 @@ public partial class LoginViewModel : ViewModelBase
             var result = await _session.LoginAsync(Username.Trim(), Password);
             if (!result.Success)
             {
-                ShowError(result.Error ?? "登录失败，请检查用户名和密码。");
+                ShowError(result.Error ?? L.Get(Login.Failed));
                 return;
             }
 
@@ -97,6 +99,9 @@ public partial class LoginViewModel : ViewModelBase
         OnPropertyChanged(nameof(BusyText));
 
     partial void OnIsBusyChanged(bool value) =>
+        OnPropertyChanged(nameof(BusyText));
+
+    protected override void OnLocalizationChanged() =>
         OnPropertyChanged(nameof(BusyText));
 
     private void ShowError(string message)

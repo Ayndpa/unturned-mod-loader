@@ -1,6 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:UnturnedModLoader.ViewModels"
+        xmlns:i18n="using:UnturnedModLoader.I18n"
+        xmlns:c="https://codewf.com"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -9,14 +11,13 @@
         x:Name="MainView"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/avalonia-logo.ico"
-        Title="Unturned Mod Loader"
+        Title="{c:I18n {x:Static i18n:Common.AppName}}"
         Width="1024" Height="680"
         MinWidth="800" MinHeight="520"
         Background="{StaticResource BgCanvasBrush}">
 
     <Grid RowDefinitions="Auto,*,Auto">
 
-        <!-- Header -->
         <Border Grid.Row="0"
                 Background="{StaticResource BgPaperBrush}"
                 BorderBrush="{StaticResource HairlineBrush}"
@@ -34,11 +35,11 @@
                                     VerticalAlignment="Center" />
                     </Border>
                     <StackPanel VerticalAlignment="Center" Spacing="2">
-                        <TextBlock Text="Unturned Mod Loader"
+                        <TextBlock Text="{c:I18n {x:Static i18n:Common.AppName}}"
                                    FontSize="16"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource InkBrush}" />
-                        <TextBlock Text="模组加载与管理"
+                        <TextBlock Text="{c:I18n {x:Static i18n:Main.Subtitle}}"
                                    FontSize="12"
                                    Foreground="{StaticResource MidGrayBrush}" />
                     </StackPanel>
@@ -60,24 +61,22 @@
                                    VerticalAlignment="Center" />
                     </StackPanel>
                     <Button Classes="icon"
-                            ToolTip.Tip="设置"
+                            ToolTip.Tip="{c:I18n {x:Static i18n:Common.Settings}}"
                             Command="{Binding OpenSettingsCommand}">
                         <LucideIcon Kind="Settings" Size="18" />
                     </Button>
                     <Button Classes="primary iconText" Padding="14,8">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <LucideIcon Kind="Play" Size="16" Foreground="{StaticResource BgPaperBrush}" />
-                            <TextBlock Text="启动游戏" VerticalAlignment="Center" />
+                            <TextBlock Text="{c:I18n {x:Static i18n:Main.LaunchGame}}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Body -->
         <Grid Grid.Row="1" ColumnDefinitions="200,*">
 
-            <!-- Sidebar -->
             <Border Grid.Column="0"
                     Background="{StaticResource BgPaperBrush}"
                     BorderBrush="{StaticResource HairlineBrush}"
@@ -86,7 +85,7 @@
                 <StackPanel Spacing="4">
                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="12,0,0,8">
                         <LucideIcon Kind="Tags" Size="12" Foreground="{StaticResource MidGrayBrush}" />
-                        <TextBlock Text="分类"
+                        <TextBlock Text="{c:I18n {x:Static i18n:Main.Categories}}"
                                    FontSize="11"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource MidGrayBrush}"
@@ -100,7 +99,7 @@
                                 <Button Classes="sidebar"
                                         Classes.selected="{Binding IsSelected}"
                                         Command="{Binding #MainView.((vm:MainViewModel)DataContext).SelectCategoryCommand}"
-                                        CommandParameter="{Binding Name}">
+                                        CommandParameter="{Binding Key}">
                                     <StackPanel Orientation="Horizontal" Spacing="10">
                                         <LucideIcon Kind="{Binding IconKind}"
                                                     Size="16"
@@ -118,7 +117,7 @@
 
                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="12,0,0,8">
                         <LucideIcon Kind="Zap" Size="12" Foreground="{StaticResource MidGrayBrush}" />
-                        <TextBlock Text="快捷操作"
+                        <TextBlock Text="{c:I18n {x:Static i18n:Main.QuickActions}}"
                                    FontSize="11"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource MidGrayBrush}"
@@ -129,22 +128,20 @@
                     <Button Classes="sidebar">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <LucideIcon Kind="FolderOpen" Size="16" Foreground="{StaticResource MidGrayBrush}" />
-                            <TextBlock Text="打开模组目录" VerticalAlignment="Center" />
+                            <TextBlock Text="{c:I18n {x:Static i18n:Main.OpenModsFolder}}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                     <Button Classes="sidebar" Command="{Binding BrowseGamePathCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <LucideIcon Kind="FolderSearch" Size="16" Foreground="{StaticResource MidGrayBrush}" />
-                            <TextBlock Text="浏览游戏目录" VerticalAlignment="Center" />
+                            <TextBlock Text="{c:I18n {x:Static i18n:Main.BrowseGameFolder}}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
             </Border>
 
-            <!-- Main content -->
             <Grid Grid.Column="1" RowDefinitions="Auto,*" Margin="20">
 
-                <!-- Toolbar -->
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
                     <Border Grid.Column="0"
                             Background="{StaticResource BgPaperBrush}"
@@ -160,7 +157,7 @@
                                         VerticalAlignment="Center" />
                             <TextBox Grid.Column="1"
                                      Classes="search"
-                                     PlaceholderText="搜索模组..."
+                                     PlaceholderText="{c:I18n {x:Static i18n:Main.SearchPlaceholder}}"
                                      Text="{Binding SearchText}"
                                      Background="Transparent"
                                      BorderThickness="0" />
@@ -170,11 +167,11 @@
                                 Orientation="Horizontal"
                                 Spacing="8"
                                 Margin="12,0,0,0">
-                        <Button Classes="icon" ToolTip.Tip="添加模组">
+                        <Button Classes="icon" ToolTip.Tip="{c:I18n {x:Static i18n:Main.AddMod}}">
                             <LucideIcon Kind="Plus" Size="18" />
                         </Button>
                         <Button Classes="icon"
-                                ToolTip.Tip="刷新"
+                                ToolTip.Tip="{c:I18n {x:Static i18n:Common.Refresh}}"
                                 Command="{Binding RefreshModsCommand}"
                                 IsEnabled="{Binding !IsLoading}">
                             <LucideIcon Kind="RefreshCw" Size="18" />
@@ -182,10 +179,8 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- Mod list -->
                 <Panel Grid.Row="1">
 
-                    <!-- Loading -->
                     <Border IsVisible="{Binding IsLoading}"
                             Background="#99F5F5F5"
                             CornerRadius="12"
@@ -203,7 +198,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Empty state -->
                     <Border IsVisible="{Binding IsEmpty}"
                             IsHitTestVisible="True"
                             Background="Transparent"
@@ -265,7 +259,7 @@
                                         Padding="16,10">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <LucideIcon Kind="RefreshCw" Size="16" Foreground="{StaticResource BgPaperBrush}" />
-                                        <TextBlock Text="重新加载" VerticalAlignment="Center" />
+                                        <TextBlock Text="{c:I18n {x:Static i18n:Main.Reload}}" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
@@ -327,10 +321,10 @@
                                                         Spacing="6"
                                                         VerticalAlignment="Center"
                                                         Margin="12,0,0,0">
-                                                <Button Classes="icon" ToolTip.Tip="详情" Padding="8">
+                                                <Button Classes="icon" ToolTip.Tip="{c:I18n {x:Static i18n:Main.Details}}" Padding="8">
                                                     <LucideIcon Kind="Info" Size="16" />
                                                 </Button>
-                                                <Button Classes="icon" ToolTip.Tip="移除" Padding="8">
+                                                <Button Classes="icon" ToolTip.Tip="{c:I18n {x:Static i18n:Main.Remove}}" Padding="8">
                                                     <LucideIcon Kind="Trash2" Size="16" />
                                                 </Button>
                                             </StackPanel>
@@ -344,7 +338,6 @@
             </Grid>
         </Grid>
 
-        <!-- Status bar -->
         <Border Grid.Row="2"
                 Background="{StaticResource BgPaperBrush}"
                 BorderBrush="{StaticResource HairlineBrush}"
@@ -363,7 +356,7 @@
                                MaxWidth="500"
                                VerticalAlignment="Center" />
                     <Button Classes="icon"
-                            ToolTip.Tip="浏览游戏目录"
+                            ToolTip.Tip="{c:I18n {x:Static i18n:Main.BrowseGameFolder}}"
                             Command="{Binding BrowseGamePathCommand}"
                             Padding="6">
                         <LucideIcon Kind="FolderOpen" Size="14" />

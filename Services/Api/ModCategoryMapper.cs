@@ -1,18 +1,19 @@
 using Lucide.Avalonia;
+using UnturnedModLoader.I18n;
 using UnturnedModLoader.Models.Api;
 
 namespace UnturnedModLoader.Services.Api;
 
 public static class ModCategoryMapper
 {
-    private static readonly Dictionary<string, string> LegacySlugToLabel = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> LegacySlugToI18nKey = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["weapon"] = "武器",
-        ["map"] = "地图",
-        ["vehicle"] = "载具",
-        ["survival"] = "生存",
-        ["ui"] = "界面",
-        ["other"] = "其他",
+        ["weapon"] = Category.Weapon,
+        ["map"] = Category.Map,
+        ["vehicle"] = Category.Vehicle,
+        ["survival"] = Category.Survival,
+        ["ui"] = Category.Ui,
+        ["other"] = Category.Other,
     };
 
     private static IReadOnlyList<RemoteCategory> _categories = [];
@@ -20,30 +21,41 @@ public static class ModCategoryMapper
     public static void SetCategories(IReadOnlyList<RemoteCategory> categories) =>
         _categories = categories;
 
-    public static string ToLabel(string? slug)
+    public static string GetDisplayName(string? key)
     {
-        if (string.IsNullOrWhiteSpace(slug))
-            return GetDefaultLabel();
+        if (string.IsNullOrWhiteSpace(key))
+            return L.Get(Category.All);
 
         var category = _categories.FirstOrDefault(c =>
-            string.Equals(c.Key, slug, StringComparison.OrdinalIgnoreCase));
+            string.Equals(c.Key, key, StringComparison.OrdinalIgnoreCase));
 
         if (category is not null)
-            return category.NameZh;
+            return LocalizationService.CurrentLocaleCode == "zh"
+                ? category.NameZh
+                : category.NameEn;
 
-        return LegacySlugToLabel.TryGetValue(slug, out var label) ? label : slug;
+        return LegacySlugToI18nKey.TryGetValue(key, out var i18nKey)
+            ? L.Get(i18nKey)
+            : key;
     }
+
+    public static string ToLabel(string? slug) => GetDisplayName(slug);
 
     public static string? ToSlug(string? label)
     {
-        if (string.IsNullOrWhiteSpace(label) || label == "全部")
+        if (string.IsNullOrWhiteSpace(label))
             return null;
 
-        var category = _categories.FirstOrDefault(c => c.NameZh == label);
+        if (label == L.Get(Category.All))
+            return null;
+
+        var category = _categories.FirstOrDefault(c =>
+            c.NameZh == label || c.NameEn == label);
+
         if (category is not null)
             return category.Key;
 
-        var legacy = LegacySlugToLabel.FirstOrDefault(kv => kv.Value == label);
+        var legacy = LegacySlugToI18nKey.FirstOrDefault(kv => L.Get(kv.Value) == label);
         return string.IsNullOrEmpty(legacy.Key) ? null : legacy.Key;
     }
 
@@ -66,13 +78,5 @@ public static class ModCategoryMapper
 
     public static LucideIconKind GetAllCategoryIcon() => LucideIconKind.LayoutGrid;
 
-    private static string GetDefaultLabel()
-    {
-        var other = _categories.FirstOrDefault(c =>
-            string.Equals(c.Key, "other", StringComparison.OrdinalIgnoreCase));
-
-        return other?.NameZh
-            ?? _categories.FirstOrDefault()?.NameZh
-            ?? LegacySlugToLabel["other"];
-    }
+    private static string GetDefaultLabel() => GetDisplayName("other");
 }

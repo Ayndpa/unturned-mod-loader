@@ -3,6 +3,7 @@ using System.Linq;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using UnturnedModLoader.I18n;
 using UnturnedModLoader.Models;
 using UnturnedModLoader.Models.Api;
 using UnturnedModLoader.Services;
@@ -31,10 +32,10 @@ public partial class MainViewModel : ViewModelBase
     private string _gamePath = "";
 
     [ObservableProperty]
-    private string _selectedCategory = "全部";
+    private string? _selectedCategoryKey;
 
     [ObservableProperty]
-    private string _statusText = "就绪";
+    private string _statusText = "";
 
     [ObservableProperty]
     private bool _isLoading;
@@ -85,6 +86,7 @@ public partial class MainViewModel : ViewModelBase
         _owner = owner;
         _onLogout = onLogout;
         _gamePath = settings.GamePath;
+        _statusText = L.Get(Main.Ready);
 
         UpdateStatus();
         _ = InitializeAsync();
@@ -98,12 +100,13 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task SelectCategoryAsync(string? categoryName)
+    private async Task SelectCategoryAsync(string? categoryKey)
     {
-        if (string.IsNullOrWhiteSpace(categoryName) || categoryName == SelectedCategory)
+        var normalizedKey = string.IsNullOrWhiteSpace(categoryKey) ? null : categoryKey;
+        if (normalizedKey == SelectedCategoryKey)
             return;
 
-        SelectedCategory = categoryName;
+        SelectedCategoryKey = normalizedKey;
         UpdateCategorySelection();
         await LoadModsAsync();
     }
@@ -133,6 +136,8 @@ public partial class MainViewModel : ViewModelBase
         GamePath = _settings.GamePath;
         OnPropertyChanged(nameof(Username));
         UpdateStatus();
+        await LoadCategoriesAsync();
+        await LoadModsAsync();
 
         if (logoutTriggered)
             _onLogout?.Invoke();
@@ -142,7 +147,7 @@ public partial class MainViewModel : ViewModelBase
     private async Task BrowseGamePathAsync()
     {
         var picked = await _folderPicker.PickFolderAsync(
-            "选择 Unturned 游戏目录",
+            L.Get(GamePathKeys.PickerTitle),
             string.IsNullOrWhiteSpace(GamePath) ? null : GamePath);
 
         if (picked is null)
@@ -153,11 +158,11 @@ public partial class MainViewModel : ViewModelBase
         {
             _settings.GamePath = GamePath;
             _settingsService.Save(_settings);
-            StatusText = "游戏路径已更新";
+            StatusText = L.Get(Main.GamePathUpdated);
         }
         else
         {
-            StatusText = $"无效目录：未找到 {GamePathValidator.ExecutableName}";
+            StatusText = L.Get(GamePathKeys.Invalid, GamePathValidator.ExecutableName);
         }
     }
 
@@ -207,12 +212,9 @@ public partial class MainViewModel : ViewModelBase
         {
             if (Categories.Count == 0)
             {
-                Categories.Add(new CategoryViewModel(
-                    "全部",
-                    null,
-                    ModCategoryMapper.GetAllCategoryIcon())
+                Categories.Add(new CategoryViewModel(null, ModCategoryMapper.GetAllCategoryIcon())
                 {
-                    IsSelected = true,
+                    IsSelected = SelectedCategoryKey is null,
                 });
             }
 
@@ -225,31 +227,27 @@ public partial class MainViewModel : ViewModelBase
 
     private void ApplyCategories(IReadOnlyList<RemoteCategory> remoteCategories)
     {
-        var previousSelection = SelectedCategory;
+        var previousSelection = SelectedCategoryKey;
         Categories.Clear();
 
-        Categories.Add(new CategoryViewModel(
-            "全部",
-            null,
-            ModCategoryMapper.GetAllCategoryIcon())
+        Categories.Add(new CategoryViewModel(null, ModCategoryMapper.GetAllCategoryIcon())
         {
-            IsSelected = previousSelection == "全部",
+            IsSelected = previousSelection is null,
         });
 
         foreach (var category in remoteCategories.OrderBy(c => c.SortOrder).ThenBy(c => c.Id))
         {
             Categories.Add(new CategoryViewModel(
-                category.NameZh,
                 category.Key,
                 ModCategoryMapper.GetIconFromApiName(category.Icon))
             {
-                IsSelected = category.NameZh == previousSelection,
+                IsSelected = category.Key == previousSelection,
             });
         }
 
         if (!Categories.Any(c => c.IsSelected))
         {
-            SelectedCategory = "全部";
+            SelectedCategoryKey = null;
             UpdateCategorySelection();
         }
     }
@@ -257,7 +255,7 @@ public partial class MainViewModel : ViewModelBase
     private void UpdateCategorySelection()
     {
         foreach (var category in Categories)
-            category.IsSelected = category.Name == SelectedCategory;
+            category.IsSelected = category.Key == SelectedCategoryKey;
     }
 
     private async Task LoadModsAsync()
@@ -268,7 +266,7 @@ public partial class MainViewModel : ViewModelBase
 
         IsLoading = true;
         IsEmpty = false;
-        ListMessage = "正在从 API 加载模组…";
+        ListMessage = L.Get(Main.LoadingMods);
 
         foreach (var mod in Mods)
         {
@@ -280,7 +278,7 @@ public partial class MainViewModel : ViewModelBase
         {
             var query = new ModsQuery
             {
-                Category = ModCategoryMapper.ToSlug(SelectedCategory),
+                Category = SelectedCategoryKey,
                 Search = SearchText,
             };
 
@@ -291,9 +289,9 @@ public partial class MainViewModel : ViewModelBase
                 SetEmptyState(
                     isError: true,
                     isSearch: false,
-                    title: "无法连接服务端",
-                    subtitle: result.Error ?? "请确认本地 API 已启动（默认 http://localhost:3000）");
-                StatusText = result.Error ?? "API 请求失败";
+                    title: L.Get(Main.CannotConnectTitle),
+                    subtitle: result.Error ?? L.Get(Main.CannotConnectHint));
+                StatusText = result.Error ?? L.Get(Main.ApiRequestFailed);
                 OnPropertyChanged(nameof(EnabledCount));
                 OnPropertyChanged(nameof(TotalCount));
                 return;
@@ -304,15 +302,13 @@ public partial class MainViewModel : ViewModelBase
 
             if (Mods.Count == 0)
             {
-                var hasFilter = !string.IsNullOrWhiteSpace(SearchText) || SelectedCategory != "全部";
+                var hasFilter = !string.IsNullOrWhiteSpace(SearchText) || SelectedCategoryKey is not null;
                 SetEmptyState(
                     isError: false,
                     isSearch: hasFilter,
-                    title: hasFilter ? "未找到匹配的模组" : "还没有可用模组",
-                    subtitle: hasFilter
-                        ? "试试其他关键词或切换分类筛选"
-                        : "在网站上传并通过审核后，点击刷新即可在此查看");
-                StatusText = $"已连接 {_modsApi.BaseUrl} · 0 个模组";
+                    title: hasFilter ? L.Get(Main.NoMatchTitle) : L.Get(Main.NoModsTitle),
+                    subtitle: hasFilter ? L.Get(Main.NoMatchHint) : L.Get(Main.NoModsHint));
+                StatusText = L.Get(Main.ConnectedEmpty, _modsApi.BaseUrl);
             }
             else
             {
@@ -320,7 +316,7 @@ public partial class MainViewModel : ViewModelBase
                 IsErrorState = false;
                 IsSearchEmpty = false;
                 ListMessage = "";
-                StatusText = $"已加载 {result.Total} 个模组 · {_modsApi.BaseUrl}";
+                StatusText = L.Get(Main.LoadedCount, result.Total, _modsApi.BaseUrl);
                 NotifyEmptyIconStates();
             }
         }
@@ -349,7 +345,7 @@ public partial class MainViewModel : ViewModelBase
                 Version = string.IsNullOrWhiteSpace(remote.Version) ? "—" : remote.Version,
                 Category = ModCategoryMapper.ToLabel(remote.Category),
                 Description = string.IsNullOrWhiteSpace(remote.Description)
-                    ? "暂无描述"
+                    ? L.Get(Common.NoDescription)
                     : remote.Description,
                 Downloads = remote.Downloads,
                 LikeCount = remote.LikeCount,
@@ -374,24 +370,24 @@ public partial class MainViewModel : ViewModelBase
 
     private void UpdateCategoryCounts(IReadOnlyList<RemoteMod> mods, int apiTotal)
     {
-        if (SelectedCategory == "全部")
+        if (SelectedCategoryKey is null)
         {
             var counts = mods
-                .GroupBy(m => ModCategoryMapper.ToLabel(m.Category))
-                .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+                .GroupBy(m => m.Category, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
 
             foreach (var category in Categories)
             {
-                category.Count = category.Name == "全部"
+                category.Count = category.Key is null
                     ? apiTotal
-                    : counts.TryGetValue(category.Name, out var count) ? count : 0;
+                    : counts.TryGetValue(category.Key, out var count) ? count : 0;
             }
 
             return;
         }
 
         foreach (var category in Categories)
-            category.Count = category.Name == SelectedCategory ? apiTotal : 0;
+            category.Count = category.Key == SelectedCategoryKey ? apiTotal : 0;
     }
 
     private void SetEmptyState(bool isError, bool isSearch, string title, string subtitle)
@@ -421,12 +417,18 @@ public partial class MainViewModel : ViewModelBase
         if (IsLoading)
             return;
 
-        if (!string.IsNullOrWhiteSpace(ListMessage) &&
-            (IsEmpty || StatusText.Contains("无法连接", StringComparison.Ordinal)))
+        if (!string.IsNullOrWhiteSpace(ListMessage) && IsEmpty)
             return;
 
         StatusText = GamePathValidator.IsValid(GamePath)
-            ? $"已连接 {_modsApi.BaseUrl}"
-            : string.IsNullOrWhiteSpace(GamePath) ? "游戏路径未配置" : "游戏路径无效";
+            ? L.Get(Main.Connected, _modsApi.BaseUrl)
+            : string.IsNullOrWhiteSpace(GamePath)
+                ? L.Get(Main.GamePathNotConfigured)
+                : L.Get(Main.GamePathInvalid);
+    }
+
+    protected override void OnLocalizationChanged()
+    {
+        _ = RefreshModsAsync();
     }
 }

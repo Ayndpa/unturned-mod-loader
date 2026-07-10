@@ -1,6 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:UnturnedModLoader.ViewModels"
+        xmlns:i18n="using:UnturnedModLoader.I18n"
+        xmlns:c="https://codewf.com"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -8,7 +10,7 @@
         x:Class="UnturnedModLoader.Views.LoginWindow"
         x:DataType="vm:LoginViewModel"
         Icon="/Assets/avalonia-logo.ico"
-        Title="登录 - Unturned Mod Loader"
+        Title="{c:I18n {x:Static i18n:Login.Title}}"
         Width="480" Height="520"
         MinWidth="420" MinHeight="480"
         CanResize="False"
@@ -34,12 +36,12 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center" />
                 </Border>
-                <TextBlock Text="登录账号"
+                <TextBlock Text="{c:I18n {x:Static i18n:Login.Heading}}"
                            FontSize="20"
                            FontWeight="SemiBold"
                            Foreground="{StaticResource InkBrush}"
                            HorizontalAlignment="Center" />
-                <TextBlock Text="登录后可同步收藏、下载记录等个人数据"
+                <TextBlock Text="{c:I18n {x:Static i18n:Login.Subtitle}}"
                            FontSize="13"
                            Foreground="{StaticResource MidGrayBrush}"
                            TextWrapping="Wrap"
@@ -62,23 +64,23 @@
                 </Border>
 
                 <StackPanel Spacing="8">
-                    <TextBlock Text="用户名"
+                    <TextBlock Text="{c:I18n {x:Static i18n:Common.Username}}"
                                FontSize="12"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource MidGrayBrush}" />
                     <TextBox Text="{Binding Username}"
-                             PlaceholderText="请输入用户名"
+                             PlaceholderText="{c:I18n {x:Static i18n:Login.UsernamePlaceholder}}"
                              IsEnabled="{Binding !IsBusy}" />
                 </StackPanel>
 
                 <StackPanel Spacing="8">
-                    <TextBlock Text="密码"
+                    <TextBlock Text="{c:I18n {x:Static i18n:Common.Password}}"
                                FontSize="12"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource MidGrayBrush}" />
                     <TextBox Text="{Binding Password}"
                              PasswordChar="●"
-                             PlaceholderText="请输入密码"
+                             PlaceholderText="{c:I18n {x:Static i18n:Login.PasswordPlaceholder}}"
                              IsEnabled="{Binding !IsBusy}" />
                 </StackPanel>
 
@@ -89,7 +91,7 @@
                         Padding="0,10"
                         Margin="0,4,0,0">
                     <Panel>
-                        <TextBlock Text="登录"
+                        <TextBlock Text="{c:I18n {x:Static i18n:Login.Submit}}"
                                    HorizontalAlignment="Center"
                                    IsVisible="{Binding !IsBusy}" />
                         <StackPanel Orientation="Horizontal"
@@ -112,12 +114,12 @@
                         HorizontalAlignment="Center"
                         Spacing="4"
                         Margin="0,24,0,0">
-                <TextBlock Text="还没有账号？"
+                <TextBlock Text="{c:I18n {x:Static i18n:Login.NoAccount}}"
                            FontSize="13"
                            Foreground="{StaticResource MidGrayBrush}"
                            VerticalAlignment="Center" />
                 <Button Classes="ghost"
-                        Content="立即注册"
+                        Content="{c:I18n {x:Static i18n:Login.GoRegister}}"
                         Command="{Binding GoToRegisterCommand}"
                         IsEnabled="{Binding !IsBusy}"
                         Padding="6,4" />

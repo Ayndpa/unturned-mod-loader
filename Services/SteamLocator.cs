@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
+using UnturnedModLoader.I18n;
 
 namespace UnturnedModLoader.Services;
 
@@ -21,25 +22,24 @@ public static class SteamLocator
     public static SteamDetectionResult DetectUnturned()
     {
         if (!OperatingSystem.IsWindows())
-            return new(false, null, "自动检测仅支持 Windows 系统。");
+            return new(false, null, L.Get(Steam.WindowsOnly));
 
         var libraries = GetSteamLibraryPaths();
         if (libraries.Count == 0)
-            return new(false, null, "未在注册表中找到 Steam 安装路径，请手动选择游戏目录。");
+            return new(false, null, L.Get(Steam.NotFound));
 
         foreach (var library in libraries)
         {
             var fromManifest = TryResolveFromManifest(library);
             if (fromManifest is not null)
-                return new(true, fromManifest, "已通过 Steam 库自动检测到 Unturned。");
+                return new(true, fromManifest, L.Get(Steam.Detected));
 
             var defaultPath = Path.Combine(library, "steamapps", "common", UnturnedFolder);
             if (GamePathValidator.IsValid(defaultPath))
-                return new(true, defaultPath, "已通过 Steam 库自动检测到 Unturned。");
+                return new(true, defaultPath, L.Get(Steam.Detected));
         }
 
-        return new(false, null,
-            "已找到 Steam 安装，但未检测到 Unturned。请确认游戏已安装，或手动选择游戏目录。");
+        return new(false, null, L.Get(Steam.InstalledNotFound));
     }
 
     [SupportedOSPlatform("windows")]

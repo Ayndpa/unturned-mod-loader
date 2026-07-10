@@ -24,6 +24,11 @@ public partial class App : Application
             var settingsService = new SettingsService();
             var settings = settingsService.Load();
 
+            if (string.IsNullOrWhiteSpace(settings.Locale))
+                settings.Locale = LocalizationService.DetectDefaultLocaleCode();
+
+            LocalizationService.Initialize(settings);
+
             if (!settings.OnboardingCompleted)
                 ShowOnboarding(desktop, settingsService, settings);
             else

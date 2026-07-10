@@ -1,9 +1,11 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:i18n="using:UnturnedModLoader.I18n"
+        xmlns:c="https://codewf.com">
 
     <Design.PreviewWith>
         <Border Padding="20" Background="{StaticResource BgCanvasBrush}">
-            <Button Classes="primary" Content="启动游戏" />
+            <Button Classes="primary" Content="{c:I18n {x:Static i18n:Main.LaunchGame}}" />
         </Border>
     </Design.PreviewWith>
 

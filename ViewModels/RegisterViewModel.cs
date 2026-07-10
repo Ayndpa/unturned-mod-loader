@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using UnturnedModLoader.I18n;
 using UnturnedModLoader.Models;
 using UnturnedModLoader.Services;
 
@@ -66,7 +67,7 @@ public partial class RegisterViewModel : ViewModelBase
 
             if (!result.Success)
             {
-                ShowError(result.Error ?? "注册失败，请稍后重试。");
+                ShowError(result.Error ?? L.Get(Register.Failed));
                 return;
             }
 
@@ -84,25 +85,25 @@ public partial class RegisterViewModel : ViewModelBase
     private string? Validate()
     {
         if (string.IsNullOrWhiteSpace(Username))
-            return "请填写用户名。";
+            return L.Get(Register.UsernameRequired);
 
         if (!UsernamePattern.IsMatch(Username.Trim()))
-            return "用户名需为 3–32 位字母、数字或下划线。";
+            return L.Get(Register.UsernameInvalid);
 
         if (string.IsNullOrWhiteSpace(Email))
-            return "请填写邮箱。";
+            return L.Get(Register.EmailRequired);
 
         if (!EmailPattern.IsMatch(Email.Trim()))
-            return "邮箱格式不正确。";
+            return L.Get(Register.EmailInvalid);
 
         if (string.IsNullOrWhiteSpace(Password))
-            return "请填写密码。";
+            return L.Get(Register.PasswordRequired);
 
         if (Password.Length < 6)
-            return "密码至少 6 位。";
+            return L.Get(Register.PasswordTooShort);
 
         if (Password != ConfirmPassword)
-            return "两次输入的密码不一致。";
+            return L.Get(Register.PasswordMismatch);
 
         return null;
     }

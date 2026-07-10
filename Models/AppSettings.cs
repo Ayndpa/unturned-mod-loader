@@ -16,6 +16,9 @@ public class AppSettings
     public string? Username { get; set; }
     public string? UserRole { get; set; }
 
+    /// <summary>UI locale: <c>zh</c> or <c>en</c>.</summary>
+    public string Locale { get; set; } = "";
+
     public bool IsLoggedIn =>
         !string.IsNullOrWhiteSpace(AuthToken) && UserId.HasValue;
 }

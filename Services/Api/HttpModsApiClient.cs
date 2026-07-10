@@ -1,6 +1,8 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using UnturnedModLoader.I18n;
 using UnturnedModLoader.Models.Api;
+using UnturnedModLoader.Services;
 
 namespace UnturnedModLoader.Services.Api;
 
@@ -48,14 +50,14 @@ public sealed class HttpModsApiClient : IModsApiClient, IDisposable
                 return new CategoriesListResult(
                     false,
                     [],
-                    ParseErrorMessage(body) ?? $"请求失败 (HTTP {(int)response.StatusCode})");
+                    ParseErrorMessage(body) ?? L.Get(I18n.ApiMessages.RequestFailed, (int)response.StatusCode));
             }
 
             var payload = await response.Content
                 .ReadFromJsonAsync<CategoriesListResponse>(JsonOptions, cancellationToken);
 
             if (payload is null)
-                return new CategoriesListResult(false, [], "服务端返回了无效数据。");
+                return new CategoriesListResult(false, [], L.Get(I18n.ApiMessages.InvalidResponse));
 
             return new CategoriesListResult(true, payload.Categories, null);
         }
@@ -65,15 +67,15 @@ public sealed class HttpModsApiClient : IModsApiClient, IDisposable
         }
         catch (TaskCanceledException)
         {
-            return new CategoriesListResult(false, [], "请求超时，请检查服务端是否已启动。");
+            return new CategoriesListResult(false, [], L.Get(I18n.ApiMessages.Timeout));
         }
         catch (HttpRequestException ex)
         {
-            return new CategoriesListResult(false, [], $"无法连接 API：{ex.Message}");
+            return new CategoriesListResult(false, [], L.Get(I18n.ApiMessages.CannotConnect, ex.Message));
         }
         catch (Exception ex)
         {
-            return new CategoriesListResult(false, [], $"加载分类失败：{ex.Message}");
+            return new CategoriesListResult(false, [], L.Get(I18n.ApiMessages.LoadCategoriesFailed, ex.Message));
         }
     }
 
@@ -100,14 +102,14 @@ public sealed class HttpModsApiClient : IModsApiClient, IDisposable
                         false,
                         [],
                         0,
-                        ParseErrorMessage(body) ?? $"请求失败 (HTTP {(int)response.StatusCode})");
+                        ParseErrorMessage(body) ?? L.Get(I18n.ApiMessages.RequestFailed, (int)response.StatusCode));
                 }
 
                 var payload = await response.Content
                     .ReadFromJsonAsync<ModsListResponse>(JsonOptions, cancellationToken);
 
                 if (payload is null)
-                    return new ModsListResult(false, [], 0, "服务端返回了无效数据。");
+                    return new ModsListResult(false, [], 0, L.Get(I18n.ApiMessages.InvalidResponse));
 
                 allMods.AddRange(payload.Mods);
                 total = payload.Total;
@@ -123,15 +125,15 @@ public sealed class HttpModsApiClient : IModsApiClient, IDisposable
         }
         catch (TaskCanceledException)
         {
-            return new ModsListResult(false, [], 0, "请求超时，请检查服务端是否已启动。");
+            return new ModsListResult(false, [], 0, L.Get(I18n.ApiMessages.Timeout));
         }
         catch (HttpRequestException ex)
         {
-            return new ModsListResult(false, [], 0, $"无法连接 API：{ex.Message}");
+            return new ModsListResult(false, [], 0, L.Get(I18n.ApiMessages.CannotConnect, ex.Message));
         }
         catch (Exception ex)
         {
-            return new ModsListResult(false, [], 0, $"加载模组失败：{ex.Message}");
+            return new ModsListResult(false, [], 0, L.Get(I18n.ApiMessages.LoadModsFailed, ex.Message));
         }
     }
 

@@ -1,6 +1,8 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using UnturnedModLoader.I18n;
 using UnturnedModLoader.Models.Api;
+using UnturnedModLoader.Services;
 
 namespace UnturnedModLoader.Services.Api;
 
@@ -62,11 +64,11 @@ public sealed class HttpAuthApiClient(HttpClient http) : IAuthApiClient
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (!response.IsSuccessStatusCode)
-                return new AuthResult(false, null, ParseErrorMessage(body) ?? $"请求失败 (HTTP {(int)response.StatusCode})");
+                return new AuthResult(false, null, ParseErrorMessage(body) ?? L.Get(I18n.ApiMessages.RequestFailed, (int)response.StatusCode));
 
             var payload = JsonSerializer.Deserialize<MeResponse>(body, JsonOptions);
             if (payload is null)
-                return new AuthResult(false, null, "服务端返回了无效数据。");
+                return new AuthResult(false, null, L.Get(I18n.ApiMessages.InvalidResponse));
 
             if (payload.Banned == true)
             {
@@ -74,7 +76,9 @@ public sealed class HttpAuthApiClient(HttpClient http) : IAuthApiClient
                 return new AuthResult(
                     false,
                     null,
-                    string.IsNullOrWhiteSpace(reason) ? "账号已被封禁。" : $"账号已被封禁：{reason}");
+                    string.IsNullOrWhiteSpace(reason)
+                        ? L.Get(I18n.ApiMessages.Banned)
+                        : L.Get(I18n.ApiMessages.BannedWithReason, reason));
             }
 
             if (payload.User is null)
@@ -97,7 +101,7 @@ public sealed class HttpAuthApiClient(HttpClient http) : IAuthApiClient
                 return new AuthActionResult(true, null);
 
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            return new AuthActionResult(false, ParseErrorMessage(body) ?? $"请求失败 (HTTP {(int)response.StatusCode})");
+            return new AuthActionResult(false, ParseErrorMessage(body) ?? L.Get(I18n.ApiMessages.RequestFailed, (int)response.StatusCode));
         }
         catch (Exception ex)
         {
@@ -112,11 +116,11 @@ public sealed class HttpAuthApiClient(HttpClient http) : IAuthApiClient
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (!response.IsSuccessStatusCode)
-            return new AuthResult(false, null, ParseErrorMessage(body) ?? $"请求失败 (HTTP {(int)response.StatusCode})");
+            return new AuthResult(false, null, ParseErrorMessage(body) ?? L.Get(I18n.ApiMessages.RequestFailed, (int)response.StatusCode));
 
         var payload = JsonSerializer.Deserialize<AuthActionResponse>(body, JsonOptions);
         if (payload?.User is null)
-            return new AuthResult(false, null, "服务端返回了无效数据。");
+            return new AuthResult(false, null, L.Get(I18n.ApiMessages.InvalidResponse));
 
         return new AuthResult(true, new AuthUser
         {
@@ -147,8 +151,8 @@ public sealed class HttpAuthApiClient(HttpClient http) : IAuthApiClient
 
     private static string MapException(Exception ex) => ex switch
     {
-        TaskCanceledException => "请求超时，请检查服务端是否已启动。",
-        HttpRequestException => $"无法连接 API：{ex.Message}",
-        _ => $"请求失败：{ex.Message}",
+        TaskCanceledException => L.Get(I18n.ApiMessages.Timeout),
+        HttpRequestException => L.Get(I18n.ApiMessages.CannotConnect, ex.Message),
+        _ => L.Get(I18n.ApiMessages.RequestError, ex.Message),
     };
 }

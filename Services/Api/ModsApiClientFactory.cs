@@ -1,4 +1,6 @@
+using UnturnedModLoader.I18n;
 using UnturnedModLoader.Models;
+using UnturnedModLoader.Services;
 
 namespace UnturnedModLoader.Services.Api;
 
@@ -10,10 +12,10 @@ public static class ModsApiClientFactory
     public static string ResolveBaseUrl(AppSettings settings) =>
         settings.ApiProvider switch
         {
-            ApiProvider.Cloud when !string.IsNullOrWhiteSpace(settings.CloudApiBaseUrl)
+            Models.ApiProvider.Cloud when !string.IsNullOrWhiteSpace(settings.CloudApiBaseUrl)
                 => settings.CloudApiBaseUrl.TrimEnd('/'),
-            ApiProvider.Cloud
-                => throw new InvalidOperationException("云端 API 地址未配置。"),
+            Models.ApiProvider.Cloud
+                => throw new InvalidOperationException(L.Get(I18n.ApiMessages.CloudNotConfigured)),
             _ => string.IsNullOrWhiteSpace(settings.LocalApiBaseUrl)
                 ? "http://localhost:3000"
                 : settings.LocalApiBaseUrl.TrimEnd('/'),

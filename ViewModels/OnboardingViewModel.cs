@@ -1,6 +1,7 @@
 using System.Runtime.Versioning;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using UnturnedModLoader.I18n;
 using UnturnedModLoader.Models;
 using UnturnedModLoader.Services;
 
@@ -29,7 +30,7 @@ public partial class OnboardingViewModel : ViewModelBase
 
     public bool IsWelcomeStep => CurrentStep == 0;
     public bool IsGamePathStep => CurrentStep == 1;
-    public string StepIndicator => $"步骤 {CurrentStep + 1} / 2";
+    public string StepIndicator => L.Get(Onboarding.StepIndicator, CurrentStep + 1);
 
     public event Action<AppSettings>? Completed;
 
@@ -70,7 +71,7 @@ public partial class OnboardingViewModel : ViewModelBase
             return;
 
         IsDetecting = true;
-        StatusMessage = "正在从 Steam 注册表与库文件夹中检测…";
+        StatusMessage = L.Get(GamePathKeys.Detecting);
 
         try
         {
@@ -78,7 +79,7 @@ public partial class OnboardingViewModel : ViewModelBase
             if (OperatingSystem.IsWindows())
                 result = await Task.Run(DetectOnWindows);
             else
-                result = new(false, null, "自动检测仅支持 Windows 系统。");
+                result = new(false, null, L.Get(Steam.WindowsOnly));
 
             if (result.Success && result.GamePath is not null)
                 GamePath = result.GamePath;
@@ -95,7 +96,7 @@ public partial class OnboardingViewModel : ViewModelBase
     private async Task BrowseAsync()
     {
         var picked = await _folderPicker.PickFolderAsync(
-            "选择 Unturned 游戏目录",
+            L.Get(GamePathKeys.PickerTitle),
             string.IsNullOrWhiteSpace(GamePath) ? null : GamePath);
 
         if (picked is null)
@@ -103,8 +104,8 @@ public partial class OnboardingViewModel : ViewModelBase
 
         GamePath = picked;
         StatusMessage = IsPathValid
-            ? "已选择有效的游戏目录。"
-            : $"所选目录中未找到 {GamePathValidator.ExecutableName}，请选择正确的 Unturned 安装目录。";
+            ? L.Get(GamePathKeys.SelectedValid)
+            : L.Get(GamePathKeys.SelectedInvalid, GamePathValidator.ExecutableName);
     }
 
     [RelayCommand(CanExecute = nameof(CanFinish))]
@@ -139,7 +140,7 @@ public partial class OnboardingViewModel : ViewModelBase
         FinishCommand.NotifyCanExecuteChanged();
 
         if (IsPathValid)
-            StatusMessage = "已选择有效的游戏目录。";
+            StatusMessage = L.Get(GamePathKeys.SelectedValid);
     }
 
     partial void OnIsPathValidChanged(bool value) =>
@@ -149,6 +150,9 @@ public partial class OnboardingViewModel : ViewModelBase
     {
         IsPathValid = GamePathValidator.IsValid(GamePath);
     }
+
+    protected override void OnLocalizationChanged() =>
+        OnPropertyChanged(nameof(StepIndicator));
 
     [SupportedOSPlatform("windows")]
     private static SteamDetectionResult DetectOnWindows() => SteamLocator.DetectUnturned();

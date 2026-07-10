@@ -1,12 +1,14 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using Lucide.Avalonia;
+using UnturnedModLoader.I18n;
+using UnturnedModLoader.Services;
+using UnturnedModLoader.Services.Api;
 
 namespace UnturnedModLoader.ViewModels;
 
 public partial class CategoryViewModel : ViewModelBase
 {
-    public string Name { get; }
-    public string? ApiSlug { get; }
+    public string? Key { get; }
     public LucideIconKind IconKind { get; }
 
     [ObservableProperty]
@@ -15,14 +17,22 @@ public partial class CategoryViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isSelected;
 
-    public string Label => Count > 0 ? $"{Name} ({Count})" : Name;
+    public string Name => ModCategoryMapper.GetDisplayName(Key);
+    public string Label => Count > 0 ? L.Get(Category.Count, Name, Count) : Name;
 
-    public CategoryViewModel(string name, string? apiSlug, LucideIconKind iconKind)
+    public CategoryViewModel(string? key, LucideIconKind iconKind)
     {
-        Name = name;
-        ApiSlug = apiSlug;
+        Key = key;
         IconKind = iconKind;
     }
 
-    partial void OnCountChanged(int value) => OnPropertyChanged(nameof(Label));
+    partial void OnCountChanged(int value) => RefreshLabel();
+
+    protected override void OnLocalizationChanged()
+    {
+        OnPropertyChanged(nameof(Name));
+        RefreshLabel();
+    }
+
+    private void RefreshLabel() => OnPropertyChanged(nameof(Label));
 }

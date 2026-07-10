@@ -12,6 +12,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="I18n\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.0" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.0" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0" />
@@ -21,6 +25,8 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Lang.Avalonia" Version="12.0.5.2" />
+    <PackageReference Include="Lang.Avalonia.Json" Version="12.0.5.2" />
     <PackageReference Include="Lucide.Avalonia" Version="0.2.12" />
   </ItemGroup>
 </Project>
