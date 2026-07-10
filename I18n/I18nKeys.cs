@@ -208,6 +208,9 @@ public static class Settings
     public const string GameInstallDesc = "Localization.Settings.GameInstallDesc";
     public const string CurrentAccountTitle = "Localization.Settings.CurrentAccountTitle";
     public const string CurrentAccountDesc = "Localization.Settings.CurrentAccountDesc";
+    public const string GuestAccountHint = "Localization.Settings.GuestAccountHint";
+    public const string Login = "Localization.Settings.Login";
+    public const string Register = "Localization.Settings.Register";
     public const string RefreshAccount = "Localization.Settings.RefreshAccount";
     public const string Logout = "Localization.Settings.Logout";
     public const string ApiTitle = "Localization.Settings.ApiTitle";

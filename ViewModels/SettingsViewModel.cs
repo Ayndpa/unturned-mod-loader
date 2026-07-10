@@ -1,11 +1,12 @@
 using System.Runtime.Versioning;
+using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using UnturnedModLoader.I18n;
 using UnturnedModLoader.Models;
 using UnturnedModLoader.Models.Api;
 using UnturnedModLoader.Services;
-using UnturnedModLoader.Services.Api;
+using UnturnedModLoader.Views;
 
 namespace UnturnedModLoader.ViewModels;
 
@@ -15,7 +16,7 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly AppSettings _settings;
     private readonly FolderPickerService _folderPicker;
     private readonly AuthSessionService _session;
-    private readonly IModsApiClient _modsApi;
+    private readonly Window _owner;
     private string _currentRole = "";
 
     [ObservableProperty]
@@ -49,28 +50,12 @@ public partial class SettingsViewModel : ViewModelBase
     private string _accountStatus = "";
 
     [ObservableProperty]
-    private string _selectedApiProvider = "Local";
-
-    [ObservableProperty]
-    private string _localApiBaseUrl = "";
-
-    [ObservableProperty]
-    private string _cloudApiBaseUrl = "";
-
-    [ObservableProperty]
-    private string _apiStatus = "";
-
-    [ObservableProperty]
-    private bool _isSavingApi;
-
-    [ObservableProperty]
     private string _selectedLocale = "zh";
 
     [ObservableProperty]
     private string _selectedTheme = "system";
 
-    public string CurrentApiEndpoint => _modsApi.BaseUrl;
-    public IReadOnlyList<string> ApiProviderOptions { get; } = ["Local", "Cloud"];
+    public bool IsLoggedIn => _settings.IsLoggedIn;
     public IReadOnlyList<string> LocaleOptions { get; } = ["zh", "en"];
     public bool IsZhLocaleSelected => SelectedLocale == "zh";
     public bool IsEnLocaleSelected => SelectedLocale == "en";
@@ -79,29 +64,24 @@ public partial class SettingsViewModel : ViewModelBase
     public bool IsSystemThemeSelected => SelectedTheme == "system";
     public bool IsGameSection => SelectedSection == "game";
     public bool IsAccountSection => SelectedSection == "account";
-    public bool IsApiSection => SelectedSection == "api";
     public bool IsAppearanceSection => SelectedSection == "appearance";
 
     public event Action? CloseRequested;
-    public event Action? LogoutRequested;
 
     public SettingsViewModel(
         SettingsService settingsService,
         AppSettings settings,
         FolderPickerService folderPicker,
         AuthSessionService session,
-        IModsApiClient modsApi)
+        Window owner)
     {
         _settingsService = settingsService;
         _settings = settings;
         _folderPicker = folderPicker;
         _session = session;
-        _modsApi = modsApi;
+        _owner = owner;
 
         _gamePath = settings.GamePath;
-        _localApiBaseUrl = settings.LocalApiBaseUrl;
-        _cloudApiBaseUrl = settings.CloudApiBaseUrl;
-        _selectedApiProvider = settings.ApiProvider.ToString();
         _username = settings.Username ?? "";
         _selectedLocale = string.IsNullOrWhiteSpace(settings.Locale)
             ? LocalizationService.DetectDefaultLocaleCode()
@@ -109,7 +89,9 @@ public partial class SettingsViewModel : ViewModelBase
         _selectedTheme = ThemeService.NormalizePreference(settings.Theme);
 
         UpdateGamePathStatus();
-        _ = LoadAccountAsync();
+
+        if (IsLoggedIn)
+            _ = LoadAccountAsync();
     }
 
     public string GetLocaleLabel(string localeCode) => localeCode switch
@@ -117,13 +99,6 @@ public partial class SettingsViewModel : ViewModelBase
         "zh" => L.Get(LocaleKeys.Zh),
         "en" => L.Get(LocaleKeys.En),
         _ => localeCode,
-    };
-
-    public string GetApiProviderLabel(string provider) => provider switch
-    {
-        "Local" => L.Get(ApiProviderLabels.Local),
-        "Cloud" => L.Get(ApiProviderLabels.Cloud),
-        _ => provider,
     };
 
     [RelayCommand]
@@ -211,7 +186,12 @@ public partial class SettingsViewModel : ViewModelBase
         try
         {
             await _session.LogoutAsync();
-            LogoutRequested?.Invoke();
+            Username = "";
+            Email = "";
+            RoleLabel = "";
+            _currentRole = "";
+            AccountStatus = "";
+            NotifyLoginState();
         }
         finally
         {
@@ -220,46 +200,64 @@ public partial class SettingsViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task SaveApiSettingsAsync()
+    private async Task OpenLoginAsync()
     {
-        if (!Enum.TryParse<Models.ApiProvider>(SelectedApiProvider, ignoreCase: true, out var provider))
-        {
-            ApiStatus = L.Get(Settings.ApiProviderInvalid);
-            return;
-        }
+        var loginWindow = new LoginWindow();
+        var viewModel = new LoginViewModel(_session, _settings);
+        var loggedIn = false;
 
-        if (string.IsNullOrWhiteSpace(LocalApiBaseUrl))
+        viewModel.LoggedIn += _ =>
         {
-            ApiStatus = L.Get(Settings.LocalApiRequired);
-            return;
-        }
+            loggedIn = true;
+            loginWindow.Close();
+        };
+        viewModel.RegisterRequested += () =>
+        {
+            loginWindow.Close();
+            _ = OpenRegisterAsync();
+        };
 
-        if (provider == Models.ApiProvider.Cloud && string.IsNullOrWhiteSpace(CloudApiBaseUrl))
-        {
-            ApiStatus = L.Get(Settings.CloudApiRequired);
-            return;
-        }
+        loginWindow.DataContext = viewModel;
+        await loginWindow.ShowDialog(_owner);
 
-        IsSavingApi = true;
-        ApiStatus = "";
-
-        try
+        if (loggedIn)
         {
-            _settings.ApiProvider = provider;
-            _settings.LocalApiBaseUrl = LocalApiBaseUrl.Trim();
-            _settings.CloudApiBaseUrl = CloudApiBaseUrl.Trim();
-            _settingsService.Save(_settings);
-            ApiStatus = L.Get(Settings.ApiSaved);
-            await Task.CompletedTask;
+            Username = _settings.Username ?? "";
+            NotifyLoginState();
+            await LoadAccountAsync();
         }
-        finally
+    }
+
+    [RelayCommand]
+    private async Task OpenRegisterAsync()
+    {
+        var registerWindow = new RegisterWindow();
+        var viewModel = new RegisterViewModel(_session, _settings);
+        var registered = false;
+
+        viewModel.Registered += _ =>
         {
-            IsSavingApi = false;
+            registered = true;
+            registerWindow.Close();
+        };
+        viewModel.LoginRequested += () => registerWindow.Close();
+
+        registerWindow.DataContext = viewModel;
+        await registerWindow.ShowDialog(_owner);
+
+        if (registered)
+        {
+            Username = _settings.Username ?? "";
+            NotifyLoginState();
+            await LoadAccountAsync();
         }
     }
 
     private async Task LoadAccountAsync()
     {
+        if (!IsLoggedIn)
+            return;
+
         IsAccountLoading = true;
         AccountStatus = "";
 
@@ -285,6 +283,11 @@ public partial class SettingsViewModel : ViewModelBase
         {
             IsAccountLoading = false;
         }
+    }
+
+    private void NotifyLoginState()
+    {
+        OnPropertyChanged(nameof(IsLoggedIn));
     }
 
     private void PersistGamePath()
@@ -331,7 +334,6 @@ public partial class SettingsViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(IsGameSection));
         OnPropertyChanged(nameof(IsAccountSection));
-        OnPropertyChanged(nameof(IsApiSection));
         OnPropertyChanged(nameof(IsAppearanceSection));
     }
 

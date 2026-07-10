@@ -28,7 +28,6 @@ public partial class MainViewModel : ViewModelBase
     private readonly RemoteImageService _imageService;
     private readonly InstalledModsService _installedModsService;
     private readonly Window _owner;
-    private readonly Action? _onLogout;
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _loadCts;
     private bool _isHandlingToggle;
@@ -100,8 +99,7 @@ public partial class MainViewModel : ViewModelBase
         AuthSessionService session,
         RemoteImageService imageService,
         InstalledModsService installedModsService,
-        Window owner,
-        Action? onLogout = null)
+        Window owner)
     {
         _settingsService = settingsService;
         _settings = settings;
@@ -111,7 +109,6 @@ public partial class MainViewModel : ViewModelBase
         _imageService = imageService;
         _installedModsService = installedModsService;
         _owner = owner;
-        _onLogout = onLogout;
         _gamePath = settings.GamePath;
         _statusText = L.Get(Main.Ready);
 
@@ -260,17 +257,11 @@ public partial class MainViewModel : ViewModelBase
             _settings,
             _folderPicker,
             _session,
-            _modsApi);
+            _owner);
 
         var dialog = new SettingsWindow { DataContext = viewModel };
-        var logoutTriggered = false;
 
         viewModel.CloseRequested += () => dialog.Close();
-        viewModel.LogoutRequested += () =>
-        {
-            logoutTriggered = true;
-            dialog.Close();
-        };
 
         await dialog.ShowDialog(_owner);
 
@@ -285,9 +276,6 @@ public partial class MainViewModel : ViewModelBase
             await LoadCategoriesAsync();
             await LoadModsAsync();
         }
-
-        if (logoutTriggered)
-            _onLogout?.Invoke();
     }
 
     partial void OnCurrentPageChanged(MainPage value) => NotifyPageStates();
@@ -333,6 +321,10 @@ public partial class MainViewModel : ViewModelBase
 
     private async Task InitializeAsync()
     {
+        if (_settings.IsLoggedIn)
+            await _session.TryRestoreSessionAsync();
+
+        OnPropertyChanged(nameof(Username));
         await LoadCategoriesAsync();
         await LoadModsAsync();
     }
@@ -816,7 +808,7 @@ public partial class MainViewModel : ViewModelBase
                 Category = ModCategoryMapper.ToLabel(remote.Category),
                 Description = string.IsNullOrWhiteSpace(remote.Description)
                     ? L.Get(Common.NoDescription)
-                    : remote.Description,
+                    : MarkdownTextHelper.StripForPreview(remote.Description),
                 CoverUrl = remote.CoverUrl,
                 FileUrl = remote.FileUrl,
                 Downloads = remote.Downloads,

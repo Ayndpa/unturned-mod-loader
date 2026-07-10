@@ -18,7 +18,8 @@ public partial class ModDetailViewModel : ViewModelBase
     public string Author { get; private set; } = "";
     public string Version { get; private set; } = "";
     public string Category { get; private set; } = "";
-    public string Description { get; private set; } = "";
+    public string DescriptionMarkdown { get; private set; } = "";
+    public bool HasDescription { get; private set; }
     public string DownloadsText { get; private set; } = "";
     public string LikesText { get; private set; } = "";
     public string CommentsText { get; private set; } = "";
@@ -78,9 +79,8 @@ public partial class ModDetailViewModel : ViewModelBase
         Author = mod.AuthorName;
         Version = string.IsNullOrWhiteSpace(mod.Version) ? "—" : mod.Version;
         Category = ModCategoryMapper.ToLabel(mod.Category);
-        Description = string.IsNullOrWhiteSpace(mod.Description)
-            ? L.Get(Common.NoDescription)
-            : mod.Description;
+        HasDescription = !string.IsNullOrWhiteSpace(mod.Description);
+        DescriptionMarkdown = mod.Description ?? "";
         DownloadsText = mod.Downloads.ToString("N0");
         LikesText = mod.LikeCount.ToString("N0");
         CommentsText = mod.CommentCount.ToString("N0");
@@ -94,7 +94,8 @@ public partial class ModDetailViewModel : ViewModelBase
         OnPropertyChanged(nameof(Author));
         OnPropertyChanged(nameof(Version));
         OnPropertyChanged(nameof(Category));
-        OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(DescriptionMarkdown));
+        OnPropertyChanged(nameof(HasDescription));
         OnPropertyChanged(nameof(DownloadsText));
         OnPropertyChanged(nameof(LikesText));
         OnPropertyChanged(nameof(CommentsText));

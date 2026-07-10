@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:UnturnedModLoader.ViewModels"
+        xmlns:controls="using:UnturnedModLoader.Controls"
         xmlns:i18n="using:UnturnedModLoader.I18n"
         xmlns:c="https://codewf.com"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -125,11 +126,17 @@
                             </StackPanel>
                         </Grid>
 
-                        <TextBlock Text="{Binding Description}"
-                                   FontSize="13"
-                                   Foreground="{StaticResource InkSoftBrush}"
-                                   TextWrapping="Wrap"
-                                   LineHeight="20" />
+                        <StackPanel Spacing="8">
+                            <controls:MarkdownContentControl Markdown="{Binding DescriptionMarkdown}"
+                                                             ForegroundBrush="{StaticResource InkSoftBrush}"
+                                                             MutedForegroundBrush="{StaticResource MidGrayBrush}"
+                                                             IsVisible="{Binding HasDescription}" />
+                            <TextBlock Text="{c:I18n {x:Static i18n:Common.NoDescription}}"
+                                       FontSize="13"
+                                       Foreground="{StaticResource MidGrayBrush}"
+                                       FontStyle="Italic"
+                                       IsVisible="{Binding !HasDescription}" />
+                        </StackPanel>
 
                         <Border Background="{StaticResource BgSurfaceAltBrush}"
                                 BorderBrush="{StaticResource HairlineBrush}"

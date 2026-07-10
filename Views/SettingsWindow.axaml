@@ -73,15 +73,6 @@
                         </StackPanel>
                     </Button>
                     <Button Classes="sidebar"
-                            Classes.selected="{Binding IsApiSection}"
-                            Command="{Binding SelectSectionCommand}"
-                            CommandParameter="api">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <LucideIcon Kind="Server" Size="16" Foreground="{StaticResource MidGrayBrush}" />
-                            <TextBlock Text="{c:I18n {x:Static i18n:Settings.ApiSection}}" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                    <Button Classes="sidebar"
                             Classes.selected="{Binding IsAppearanceSection}"
                             Command="{Binding SelectSectionCommand}"
                             CommandParameter="appearance">
@@ -165,7 +156,41 @@
                                            LineHeight="18" />
                             </StackPanel>
 
-                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
+                            <StackPanel Spacing="12"
+                                        IsVisible="{Binding !IsLoggedIn}">
+                                <Border Background="{StaticResource BgPaperBrush}"
+                                        BorderBrush="{StaticResource HairlineBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="12,10">
+                                    <TextBlock Text="{c:I18n {x:Static i18n:Settings.GuestAccountHint}}"
+                                               FontSize="12"
+                                               Foreground="{StaticResource InkSoftBrush}"
+                                               TextWrapping="Wrap" />
+                                </Border>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Classes="primary iconText"
+                                            Command="{Binding OpenLoginCommand}"
+                                            IsEnabled="{Binding !IsAccountLoading}"
+                                            Padding="16,8">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <LucideIcon Kind="LogIn" Size="16" Foreground="{StaticResource BgPaperBrush}" />
+                                            <TextBlock Text="{c:I18n {x:Static i18n:Settings.Login}}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Classes="iconText"
+                                            Command="{Binding OpenRegisterCommand}"
+                                            IsEnabled="{Binding !IsAccountLoading}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <LucideIcon Kind="UserPlus" Size="16" />
+                                            <TextBlock Text="{c:I18n {x:Static i18n:Settings.Register}}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0"
+                                  IsVisible="{Binding IsLoggedIn}">
                                 <TextBlock Grid.Row="0" Grid.Column="0"
                                            Text="{c:I18n {x:Static i18n:Common.Username}}"
                                            FontSize="12"
@@ -212,7 +237,8 @@
                                            TextWrapping="Wrap" />
                             </Border>
 
-                            <StackPanel Orientation="Horizontal" Spacing="8">
+                            <StackPanel Orientation="Horizontal" Spacing="8"
+                                        IsVisible="{Binding IsLoggedIn}">
                                 <Button Classes="iconText"
                                         Command="{Binding RefreshAccountCommand}"
                                         IsEnabled="{Binding !IsAccountLoading}">
@@ -230,82 +256,6 @@
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
-                        </StackPanel>
-
-                        <StackPanel IsVisible="{Binding IsApiSection}" Spacing="14">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="{c:I18n {x:Static i18n:Settings.ApiTitle}}"
-                                           FontSize="15"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource InkBrush}" />
-                                <TextBlock Text="{c:I18n {x:Static i18n:Settings.ApiDesc}}"
-                                           FontSize="12"
-                                           Foreground="{StaticResource MidGrayBrush}"
-                                           TextWrapping="Wrap"
-                                           LineHeight="18" />
-                            </StackPanel>
-
-                            <Border Background="{StaticResource BgPaperBrush}"
-                                    BorderBrush="{StaticResource HairlineBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="8"
-                                    Padding="12,10">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <LucideIcon Kind="Link" Size="14" Foreground="{StaticResource MidGrayBrush}" />
-                                    <TextBlock FontSize="12" Foreground="{StaticResource InkSoftBrush}">
-                                        <Run Text="{c:I18n {x:Static i18n:Settings.CurrentConnection}}" />
-                                        <Run Text="{Binding CurrentApiEndpoint}" FontWeight="SemiBold" />
-                                    </TextBlock>
-                                </StackPanel>
-                            </Border>
-
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="{c:I18n {x:Static i18n:Settings.ApiSource}}"
-                                           FontSize="12"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource MidGrayBrush}" />
-                                <ComboBox ItemsSource="{Binding ApiProviderOptions}"
-                                          SelectedItem="{Binding SelectedApiProvider}"
-                                          HorizontalAlignment="Stretch" />
-                            </StackPanel>
-
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="{c:I18n {x:Static i18n:Settings.LocalApiUrl}}"
-                                           FontSize="12"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource MidGrayBrush}" />
-                                <TextBox Text="{Binding LocalApiBaseUrl}"
-                                         PlaceholderText="http://localhost:3000" />
-                            </StackPanel>
-
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="{c:I18n {x:Static i18n:Settings.CloudApiUrl}}"
-                                           FontSize="12"
-                                           FontWeight="SemiBold"
-                                           Foreground="{StaticResource MidGrayBrush}" />
-                                <TextBox Text="{Binding CloudApiBaseUrl}"
-                                         PlaceholderText="https://api.example.com" />
-                            </StackPanel>
-
-                            <Border Background="{StaticResource BgPaperBrush}"
-                                    BorderBrush="{StaticResource HairlineBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="8"
-                                    Padding="12,10"
-                                    IsVisible="{Binding ApiStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                <TextBlock Text="{Binding ApiStatus}"
-                                           FontSize="12"
-                                           Foreground="{StaticResource InkSoftBrush}"
-                                           TextWrapping="Wrap" />
-                            </Border>
-
-                            <Button Classes="primary"
-                                    Command="{Binding SaveApiSettingsCommand}"
-                                    IsEnabled="{Binding !IsSavingApi}"
-                                    HorizontalAlignment="Left"
-                                    Padding="16,8">
-                                <TextBlock Text="{c:I18n {x:Static i18n:Settings.SaveApi}}" />
-                            </Button>
                         </StackPanel>
 
                         <StackPanel IsVisible="{Binding IsAppearanceSection}" Spacing="20">

@@ -33,7 +33,7 @@ public partial class App : Application
             if (!settings.OnboardingCompleted)
                 ShowOnboarding(desktop, settingsService, settings);
             else
-                ShowLogin(desktop, settingsService, settings);
+                ShowMain(desktop, settingsService, settings);
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -50,7 +50,7 @@ public partial class App : Application
 
         viewModel.Completed += completedSettings =>
         {
-            ShowLogin(desktop, settingsService, completedSettings);
+            ShowMain(desktop, settingsService, completedSettings);
             onboardingWindow.Close();
         };
 
@@ -58,65 +58,18 @@ public partial class App : Application
         desktop.MainWindow = onboardingWindow;
     }
 
-    private static void ShowLogin(
+    private static void ShowMain(
         IClassicDesktopStyleApplicationLifetime desktop,
         SettingsService settingsService,
         AppSettings settings)
     {
         var api = new ApiClientBundle(settings);
-        var session = new AuthSessionService(api, settingsService, settings);
-        var loginWindow = new LoginWindow();
-        var viewModel = new LoginViewModel(session, settings);
-
-        viewModel.LoggedIn += loggedInSettings =>
-        {
-            var mainWindow = CreateMainWindow(desktop, settingsService, loggedInSettings, api);
-            desktop.MainWindow = mainWindow;
-            mainWindow.Show();
-            loginWindow.Close();
-        };
-
-        viewModel.RegisterRequested += () =>
-        {
-            ShowRegister(desktop, settingsService, settings, api, loginWindow);
-        };
-
-        loginWindow.DataContext = viewModel;
-        desktop.MainWindow = loginWindow;
-        loginWindow.Show();
-    }
-
-    private static void ShowRegister(
-        IClassicDesktopStyleApplicationLifetime desktop,
-        SettingsService settingsService,
-        AppSettings settings,
-        ApiClientBundle api,
-        Window loginWindow)
-    {
-        var session = new AuthSessionService(api, settingsService, settings);
-        var registerWindow = new RegisterWindow();
-        var viewModel = new RegisterViewModel(session, settings);
-
-        viewModel.Registered += registeredSettings =>
-        {
-            var mainWindow = CreateMainWindow(desktop, settingsService, registeredSettings, api);
-            desktop.MainWindow = mainWindow;
-            mainWindow.Show();
-            registerWindow.Close();
-            loginWindow.Close();
-        };
-
-        viewModel.LoginRequested += () =>
-        {
-            registerWindow.Close();
-        };
-
-        registerWindow.DataContext = viewModel;
-        registerWindow.Show();
+        var mainWindow = CreateMainWindow(settingsService, settings, api);
+        desktop.MainWindow = mainWindow;
+        mainWindow.Show();
     }
 
     private static MainWindow CreateMainWindow(
-        IClassicDesktopStyleApplicationLifetime desktop,
         SettingsService settingsService,
         AppSettings settings,
         ApiClientBundle api)
@@ -136,13 +89,7 @@ public partial class App : Application
             session,
             imageService,
             installedModsService,
-            mainWindow,
-            onLogout: () =>
-            {
-                mainWindow.Close();
-                api.Dispose();
-                ShowLogin(desktop, settingsService, settings);
-            });
+            mainWindow);
 
         return mainWindow;
     }
