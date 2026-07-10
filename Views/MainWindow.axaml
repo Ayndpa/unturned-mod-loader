@@ -59,7 +59,9 @@
                                    Foreground="{StaticResource InkBrush}"
                                    VerticalAlignment="Center" />
                     </StackPanel>
-                    <Button Classes="icon" ToolTip.Tip="设置">
+                    <Button Classes="icon"
+                            ToolTip.Tip="设置"
+                            Command="{Binding OpenSettingsCommand}">
                         <LucideIcon Kind="Settings" Size="18" />
                     </Button>
                     <Button Classes="primary iconText" Padding="14,8">

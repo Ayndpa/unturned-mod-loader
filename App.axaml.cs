@@ -64,7 +64,7 @@ public partial class App : Application
 
         viewModel.LoggedIn += loggedInSettings =>
         {
-            var mainWindow = CreateMainWindow(settingsService, loggedInSettings, api);
+            var mainWindow = CreateMainWindow(desktop, settingsService, loggedInSettings, api);
             desktop.MainWindow = mainWindow;
             mainWindow.Show();
             loginWindow.Close();
@@ -93,7 +93,7 @@ public partial class App : Application
 
         viewModel.Registered += registeredSettings =>
         {
-            var mainWindow = CreateMainWindow(settingsService, registeredSettings, api);
+            var mainWindow = CreateMainWindow(desktop, settingsService, registeredSettings, api);
             desktop.MainWindow = mainWindow;
             mainWindow.Show();
             registerWindow.Close();
@@ -110,13 +110,29 @@ public partial class App : Application
     }
 
     private static MainWindow CreateMainWindow(
+        IClassicDesktopStyleApplicationLifetime desktop,
         SettingsService settingsService,
         AppSettings settings,
         ApiClientBundle api)
     {
         var mainWindow = new MainWindow();
         var folderPicker = new FolderPickerService(mainWindow);
-        mainWindow.DataContext = new MainViewModel(settingsService, settings, folderPicker, api.Mods);
+        var session = new AuthSessionService(api, settingsService, settings);
+
+        mainWindow.DataContext = new MainViewModel(
+            settingsService,
+            settings,
+            folderPicker,
+            api.Mods,
+            session,
+            mainWindow,
+            onLogout: () =>
+            {
+                mainWindow.Close();
+                api.Dispose();
+                ShowLogin(desktop, settingsService, settings);
+            });
+
         return mainWindow;
     }
 }

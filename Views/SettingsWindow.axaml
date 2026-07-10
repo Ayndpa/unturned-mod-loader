@@ -1,0 +1,318 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:UnturnedModLoader.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        d:DesignWidth="680" d:DesignHeight="520"
+        x:Class="UnturnedModLoader.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="设置"
+        Width="680" Height="520"
+        MinWidth="600" MinHeight="480"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BgCanvasBrush}">
+
+    <Border Margin="20"
+            Background="{StaticResource BgPaperBrush}"
+            BorderBrush="{StaticResource HairlineBrush}"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="24,20">
+        <Grid RowDefinitions="Auto,*,Auto">
+
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,16">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Border Width="32" Height="32"
+                            CornerRadius="8"
+                            Background="{StaticResource InkBrush}">
+                        <LucideIcon Kind="Settings"
+                                    Size="18"
+                                    Foreground="{StaticResource BgPaperBrush}"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="设置"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource InkBrush}"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+                <Button Grid.Column="1"
+                        Classes="icon"
+                        HorizontalAlignment="Right"
+                        Command="{Binding CloseCommand}"
+                        ToolTip.Tip="关闭">
+                    <LucideIcon Kind="X" Size="18" />
+                </Button>
+            </Grid>
+
+            <Grid Grid.Row="1" ColumnDefinitions="148,*">
+
+                <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,16,0">
+                    <Button Classes="sidebar"
+                            Classes.selected="{Binding IsGameSection}"
+                            Command="{Binding SelectSectionCommand}"
+                            CommandParameter="game">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <LucideIcon Kind="Folder" Size="16" Foreground="{StaticResource MidGrayBrush}" />
+                            <TextBlock Text="游戏目录" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="sidebar"
+                            Classes.selected="{Binding IsAccountSection}"
+                            Command="{Binding SelectSectionCommand}"
+                            CommandParameter="account">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <LucideIcon Kind="UserRound" Size="16" Foreground="{StaticResource MidGrayBrush}" />
+                            <TextBlock Text="账号管理" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="sidebar"
+                            Classes.selected="{Binding IsApiSection}"
+                            Command="{Binding SelectSectionCommand}"
+                            CommandParameter="api">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <LucideIcon Kind="Server" Size="16" Foreground="{StaticResource MidGrayBrush}" />
+                            <TextBlock Text="API 连接" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <Border Grid.Column="1"
+                        Background="{StaticResource BgSurfaceAltBrush}"
+                        BorderBrush="{StaticResource HairlineBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="20,18">
+                    <Panel>
+
+                        <!-- Game -->
+                        <StackPanel IsVisible="{Binding IsGameSection}" Spacing="14">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="游戏安装目录"
+                                           FontSize="15"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource InkBrush}" />
+                                <TextBlock Text="请选择包含 Unturned.exe 的文件夹，用于启动游戏与加载本地模组。"
+                                           FontSize="12"
+                                           Foreground="{StaticResource MidGrayBrush}"
+                                           TextWrapping="Wrap"
+                                           LineHeight="18" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="路径"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource MidGrayBrush}" />
+                                <TextBox Text="{Binding GamePath}"
+                                         PlaceholderText="例如：C:\Program Files (x86)\Steam\steamapps\common\Unturned" />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Classes="iconText"
+                                        Command="{Binding AutoDetectGamePathCommand}"
+                                        IsEnabled="{Binding !IsDetecting}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <LucideIcon Kind="ScanSearch" Size="16" />
+                                        <TextBlock Text="自动检测" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="iconText"
+                                        Command="{Binding BrowseGamePathCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <LucideIcon Kind="FolderOpen" Size="16" />
+                                        <TextBlock Text="浏览…" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+
+                            <Border Background="{StaticResource BgPaperBrush}"
+                                    BorderBrush="{StaticResource HairlineBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="12,10">
+                                <TextBlock Text="{Binding GamePathStatus}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource InkSoftBrush}"
+                                           TextWrapping="Wrap" />
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Account -->
+                        <StackPanel IsVisible="{Binding IsAccountSection}" Spacing="14">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="当前账号"
+                                           FontSize="15"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource InkBrush}" />
+                                <TextBlock Text="查看已登录账号信息，或退出后切换其他账号。"
+                                           FontSize="12"
+                                           Foreground="{StaticResource MidGrayBrush}"
+                                           TextWrapping="Wrap"
+                                           LineHeight="18" />
+                            </StackPanel>
+
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                           Text="用户名"
+                                           FontSize="12"
+                                           Foreground="{StaticResource MidGrayBrush}"
+                                           Margin="0,0,16,10" />
+                                <TextBlock Grid.Row="0" Grid.Column="1"
+                                           Text="{Binding Username}"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource InkBrush}"
+                                           Margin="0,0,0,10" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0"
+                                           Text="邮箱"
+                                           FontSize="12"
+                                           Foreground="{StaticResource MidGrayBrush}"
+                                           Margin="0,0,16,10" />
+                                <TextBlock Grid.Row="1" Grid.Column="1"
+                                           Text="{Binding Email}"
+                                           FontSize="13"
+                                           Foreground="{StaticResource InkBrush}"
+                                           Margin="0,0,0,10" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="0"
+                                           Text="角色"
+                                           FontSize="12"
+                                           Foreground="{StaticResource MidGrayBrush}"
+                                           Margin="0,0,16,0" />
+                                <TextBlock Grid.Row="2" Grid.Column="1"
+                                           Text="{Binding RoleLabel}"
+                                           FontSize="13"
+                                           Foreground="{StaticResource InkBrush}" />
+                            </Grid>
+
+                            <Border Background="{StaticResource BgPaperBrush}"
+                                    BorderBrush="{StaticResource HairlineBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="12,10"
+                                    IsVisible="{Binding AccountStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                <TextBlock Text="{Binding AccountStatus}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource InkSoftBrush}"
+                                           TextWrapping="Wrap" />
+                            </Border>
+
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Classes="iconText"
+                                        Command="{Binding RefreshAccountCommand}"
+                                        IsEnabled="{Binding !IsAccountLoading}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <LucideIcon Kind="RefreshCw" Size="16" />
+                                        <TextBlock Text="刷新信息" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="iconText"
+                                        Command="{Binding LogoutCommand}"
+                                        IsEnabled="{Binding !IsAccountLoading}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <LucideIcon Kind="LogOut" Size="16" />
+                                        <TextBlock Text="退出登录" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- API -->
+                        <StackPanel IsVisible="{Binding IsApiSection}" Spacing="14">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="API 连接"
+                                           FontSize="15"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource InkBrush}" />
+                                <TextBlock Text="配置模组数据来源。修改后需重新启动应用才会生效。"
+                                           FontSize="12"
+                                           Foreground="{StaticResource MidGrayBrush}"
+                                           TextWrapping="Wrap"
+                                           LineHeight="18" />
+                            </StackPanel>
+
+                            <Border Background="{StaticResource BgPaperBrush}"
+                                    BorderBrush="{StaticResource HairlineBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="12,10">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <LucideIcon Kind="Link" Size="14" Foreground="{StaticResource MidGrayBrush}" />
+                                    <TextBlock FontSize="12" Foreground="{StaticResource InkSoftBrush}">
+                                        <Run Text="当前连接：" />
+                                        <Run Text="{Binding CurrentApiEndpoint}" FontWeight="SemiBold" />
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="API 来源"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource MidGrayBrush}" />
+                                <ComboBox ItemsSource="{Binding ApiProviderOptions}"
+                                          SelectedItem="{Binding SelectedApiProvider}"
+                                          HorizontalAlignment="Stretch" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="本地 API 地址"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource MidGrayBrush}" />
+                                <TextBox Text="{Binding LocalApiBaseUrl}"
+                                         PlaceholderText="http://localhost:3000" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="云端 API 地址"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource MidGrayBrush}" />
+                                <TextBox Text="{Binding CloudApiBaseUrl}"
+                                         PlaceholderText="https://api.example.com" />
+                            </StackPanel>
+
+                            <Border Background="{StaticResource BgPaperBrush}"
+                                    BorderBrush="{StaticResource HairlineBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="12,10"
+                                    IsVisible="{Binding ApiStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                <TextBlock Text="{Binding ApiStatus}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource InkSoftBrush}"
+                                           TextWrapping="Wrap" />
+                            </Border>
+
+                            <Button Classes="primary"
+                                    Command="{Binding SaveApiSettingsCommand}"
+                                    IsEnabled="{Binding !IsSavingApi}"
+                                    HorizontalAlignment="Left"
+                                    Padding="16,8">
+                                <TextBlock Text="保存 API 设置" />
+                            </Button>
+                        </StackPanel>
+                    </Panel>
+                </Border>
+            </Grid>
+
+            <StackPanel Grid.Row="2"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="8"
+                        Margin="0,16,0,0">
+                <Button Content="关闭"
+                        Classes="primary"
+                        Command="{Binding CloseCommand}"
+                        Padding="20,8" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

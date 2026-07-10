@@ -61,6 +61,17 @@ public sealed class AuthSessionService(
         ClearLocalSession();
     }
 
+    public async Task<AuthUser?> GetCurrentUserAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await api.Auth.MeAsync(cancellationToken);
+        if (!result.Success || result.User is null)
+            return null;
+
+        api.SaveSessionToSettings(settings, result.User);
+        settingsService.Save(settings);
+        return result.User;
+    }
+
     private async Task RefreshProfileAsync(CancellationToken cancellationToken)
     {
         var me = await api.Auth.MeAsync(cancellationToken);

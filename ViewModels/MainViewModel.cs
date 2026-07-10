@@ -1,11 +1,13 @@
 using System.Collections.ObjectModel;
 using System.Linq;
+using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using UnturnedModLoader.Models;
 using UnturnedModLoader.Models.Api;
 using UnturnedModLoader.Services;
 using UnturnedModLoader.Services.Api;
+using UnturnedModLoader.Views;
 
 namespace UnturnedModLoader.ViewModels;
 
@@ -15,6 +17,9 @@ public partial class MainViewModel : ViewModelBase
     private readonly AppSettings _settings;
     private readonly FolderPickerService _folderPicker;
     private readonly IModsApiClient _modsApi;
+    private readonly AuthSessionService _session;
+    private readonly Window _owner;
+    private readonly Action? _onLogout;
     private readonly Dictionary<int, bool> _enabledStates = [];
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _loadCts;
@@ -67,21 +72,30 @@ public partial class MainViewModel : ViewModelBase
         SettingsService settingsService,
         AppSettings settings,
         FolderPickerService folderPicker,
-        IModsApiClient modsApi)
+        IModsApiClient modsApi,
+        AuthSessionService session,
+        Window owner,
+        Action? onLogout = null)
     {
         _settingsService = settingsService;
         _settings = settings;
         _folderPicker = folderPicker;
         _modsApi = modsApi;
+        _session = session;
+        _owner = owner;
+        _onLogout = onLogout;
         _gamePath = settings.GamePath;
 
-        InitializeCategories();
         UpdateStatus();
-        _ = LoadModsAsync();
+        _ = InitializeAsync();
     }
 
     [RelayCommand]
-    private async Task RefreshModsAsync() => await LoadModsAsync();
+    private async Task RefreshModsAsync()
+    {
+        await LoadCategoriesAsync();
+        await LoadModsAsync();
+    }
 
     [RelayCommand]
     private async Task SelectCategoryAsync(string? categoryName)
@@ -92,6 +106,36 @@ public partial class MainViewModel : ViewModelBase
         SelectedCategory = categoryName;
         UpdateCategorySelection();
         await LoadModsAsync();
+    }
+
+    [RelayCommand]
+    private async Task OpenSettingsAsync()
+    {
+        var viewModel = new SettingsViewModel(
+            _settingsService,
+            _settings,
+            _folderPicker,
+            _session,
+            _modsApi);
+
+        var dialog = new SettingsWindow { DataContext = viewModel };
+        var logoutTriggered = false;
+
+        viewModel.CloseRequested += () => dialog.Close();
+        viewModel.LogoutRequested += () =>
+        {
+            logoutTriggered = true;
+            dialog.Close();
+        };
+
+        await dialog.ShowDialog(_owner);
+
+        GamePath = _settings.GamePath;
+        OnPropertyChanged(nameof(Username));
+        UpdateStatus();
+
+        if (logoutTriggered)
+            _onLogout?.Invoke();
     }
 
     [RelayCommand]
@@ -150,18 +194,63 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    private void InitializeCategories()
+    private async Task InitializeAsync()
     {
+        await LoadCategoriesAsync();
+        await LoadModsAsync();
+    }
+
+    private async Task LoadCategoriesAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await _modsApi.GetCategoriesAsync(cancellationToken);
+        if (!result.Success)
+        {
+            if (Categories.Count == 0)
+            {
+                Categories.Add(new CategoryViewModel(
+                    "全部",
+                    null,
+                    ModCategoryMapper.GetAllCategoryIcon())
+                {
+                    IsSelected = true,
+                });
+            }
+
+            return;
+        }
+
+        ModCategoryMapper.SetCategories(result.Categories);
+        ApplyCategories(result.Categories);
+    }
+
+    private void ApplyCategories(IReadOnlyList<RemoteCategory> remoteCategories)
+    {
+        var previousSelection = SelectedCategory;
         Categories.Clear();
-        foreach (var label in ModCategoryMapper.AllLabels)
+
+        Categories.Add(new CategoryViewModel(
+            "全部",
+            null,
+            ModCategoryMapper.GetAllCategoryIcon())
+        {
+            IsSelected = previousSelection == "全部",
+        });
+
+        foreach (var category in remoteCategories.OrderBy(c => c.SortOrder).ThenBy(c => c.Id))
         {
             Categories.Add(new CategoryViewModel(
-                label,
-                ModCategoryMapper.ToSlug(label),
-                ModCategoryMapper.GetIcon(label))
+                category.NameZh,
+                category.Key,
+                ModCategoryMapper.GetIconFromApiName(category.Icon))
             {
-                IsSelected = label == SelectedCategory,
+                IsSelected = category.NameZh == previousSelection,
             });
+        }
+
+        if (!Categories.Any(c => c.IsSelected))
+        {
+            SelectedCategory = "全部";
+            UpdateCategorySelection();
         }
     }
 

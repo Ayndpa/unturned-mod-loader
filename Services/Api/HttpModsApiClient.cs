@@ -35,6 +35,48 @@ public sealed class HttpModsApiClient : IModsApiClient, IDisposable
 
     public string BaseUrl { get; }
 
+    public async Task<CategoriesListResult> GetCategoriesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = await _http.GetAsync("api/categories", cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                return new CategoriesListResult(
+                    false,
+                    [],
+                    ParseErrorMessage(body) ?? $"请求失败 (HTTP {(int)response.StatusCode})");
+            }
+
+            var payload = await response.Content
+                .ReadFromJsonAsync<CategoriesListResponse>(JsonOptions, cancellationToken);
+
+            if (payload is null)
+                return new CategoriesListResult(false, [], "服务端返回了无效数据。");
+
+            return new CategoriesListResult(true, payload.Categories, null);
+        }
+        catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (TaskCanceledException)
+        {
+            return new CategoriesListResult(false, [], "请求超时，请检查服务端是否已启动。");
+        }
+        catch (HttpRequestException ex)
+        {
+            return new CategoriesListResult(false, [], $"无法连接 API：{ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return new CategoriesListResult(false, [], $"加载分类失败：{ex.Message}");
+        }
+    }
+
     public async Task<ModsListResult> GetModsAsync(
         ModsQuery query,
         CancellationToken cancellationToken = default)
