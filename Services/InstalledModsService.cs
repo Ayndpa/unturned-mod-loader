@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Text.Json;
 using UnturnedModLoader.Models;
 
@@ -25,7 +24,6 @@ public class InstalledModsService
         Directory.CreateDirectory(_appDataDir);
         _manifestPath = Path.Combine(_appDataDir, "installed-mods.json");
         _quarantineDir = Path.Combine(_appDataDir, "quarantine");
-        Directory.CreateDirectory(_quarantineDir);
         _manifest = LoadManifest();
     }
 
@@ -41,34 +39,18 @@ public class InstalledModsService
         if (!GamePathValidator.IsValid(gamePath))
             return [];
 
+        MigrateQuarantineToDisabled(gamePath);
+
         var parsedMods = _parser.Scan(gamePath);
         var merged = new List<InstalledMod>();
         var overlayByPath = _manifest.Mods
             .Where(mod => !string.IsNullOrWhiteSpace(mod.RelativePath))
             .ToDictionary(mod => mod.RelativePath, StringComparer.OrdinalIgnoreCase);
 
-        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
         foreach (var parsed in parsedMods)
         {
             overlayByPath.TryGetValue(parsed.RelativePath, out var overlay);
-            seenPaths.Add(parsed.RelativePath);
-
-            var isEnabled = parsed.Kind == LocalModKind.Module
-                ? parsed.IsEnabled
-                : overlay?.IsEnabled ?? !IsQuarantined(parsed.RelativePath);
-
-            merged.Add(BuildInstalledMod(parsed, overlay, gamePath, isEnabled));
-        }
-
-        foreach (var quarantined in FindQuarantinedDlls())
-        {
-            if (seenPaths.Contains(quarantined.RelativePath))
-                continue;
-
-            overlayByPath.TryGetValue(quarantined.RelativePath, out var overlay);
-            seenPaths.Add(quarantined.RelativePath);
-            merged.Add(BuildInstalledMod(quarantined, overlay, gamePath, isEnabled: false));
+            merged.Add(BuildInstalledMod(parsed, overlay, gamePath, parsed.IsEnabled));
         }
 
         _manifest.Mods = merged;
@@ -97,13 +79,15 @@ public class InstalledModsService
             }
             else
             {
-                var activePath = Path.Combine(GetModsFolder(gamePath), mod.RelativePath);
+                var modsFolder = GetModsFolder(gamePath);
+                var activePath = DllDisableHelper.GetActivePath(modsFolder, mod.RelativePath);
+                var disabledPath = DllDisableHelper.GetDisabledPath(modsFolder, mod.RelativePath);
+
                 if (File.Exists(activePath))
                     File.Delete(activePath);
 
-                var quarantinedPath = GetQuarantinePath(mod.RelativePath);
-                if (File.Exists(quarantinedPath))
-                    File.Delete(quarantinedPath);
+                if (File.Exists(disabledPath))
+                    File.Delete(disabledPath);
             }
         }
 
@@ -120,44 +104,45 @@ public class InstalledModsService
         if (mod is null || !GamePathValidator.IsValid(gamePath))
             return false;
 
-        if (mod.Kind == LocalModKind.Module)
-        {
-            if (string.IsNullOrWhiteSpace(mod.ModuleFilePath))
-                return false;
-
-            if (!LocalModuleParser.TryWriteEnabled(mod.ModuleFilePath, enabled))
-                return false;
-        }
-        else
-        {
-            var activePath = Path.Combine(GetModsFolder(gamePath), mod.RelativePath);
-            var quarantinedPath = GetQuarantinePath(mod.RelativePath);
-
-            if (enabled)
-            {
-                if (!File.Exists(quarantinedPath))
-                    return mod.IsEnabled;
-
-                Directory.CreateDirectory(Path.GetDirectoryName(activePath)!);
-                if (File.Exists(activePath))
-                    File.Delete(activePath);
-
-                File.Move(quarantinedPath, activePath);
-            }
-            else
-            {
-                if (!File.Exists(activePath))
-                    return !mod.IsEnabled;
-
-                Directory.CreateDirectory(Path.GetDirectoryName(quarantinedPath)!);
-                if (File.Exists(quarantinedPath))
-                    File.Delete(quarantinedPath);
-
-                File.Move(activePath, quarantinedPath);
-            }
-        }
+        if (!ApplyEnabledState(mod, gamePath, enabled))
+            return false;
 
         mod.IsEnabled = enabled;
+        Save();
+        return true;
+    }
+
+    public bool SetEnabledMany(IEnumerable<string> relativePaths, string gamePath, bool enabled)
+    {
+        var paths = relativePaths
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (paths.Count == 0 || !GamePathValidator.IsValid(gamePath))
+            return false;
+
+        var changed = new List<InstalledMod>();
+        foreach (var relativePath in paths)
+        {
+            var mod = _manifest.Mods.FirstOrDefault(m =>
+                string.Equals(m.RelativePath, relativePath, StringComparison.OrdinalIgnoreCase));
+
+            if (mod is null)
+                return false;
+
+            if (!ApplyEnabledState(mod, gamePath, enabled))
+            {
+                foreach (var applied in changed)
+                    ApplyEnabledState(applied, gamePath, !enabled);
+
+                return false;
+            }
+
+            mod.IsEnabled = enabled;
+            changed.Add(mod);
+        }
+
         Save();
         return true;
     }
@@ -193,11 +178,69 @@ public class InstalledModsService
         File.WriteAllText(_manifestPath, json);
     }
 
-    private bool IsQuarantined(string relativePath) =>
-        File.Exists(GetQuarantinePath(relativePath));
+    private static bool ApplyEnabledState(InstalledMod mod, string gamePath, bool enabled)
+    {
+        if (mod.Kind == LocalModKind.Module)
+        {
+            if (string.IsNullOrWhiteSpace(mod.ModuleFilePath))
+                return false;
 
-    private string GetQuarantinePath(string relativePath) =>
-        Path.Combine(_quarantineDir, relativePath.Replace('/', Path.DirectorySeparatorChar));
+            if (enabled)
+            {
+                if (!LocalModuleParser.TrySetAssembliesEnabled(mod.ModuleFilePath, enabled: true))
+                    return false;
+
+                if (!LocalModuleParser.TryWriteEnabled(mod.ModuleFilePath, isEnabled: true))
+                {
+                    LocalModuleParser.TrySetAssembliesEnabled(mod.ModuleFilePath, enabled: false);
+                    return false;
+                }
+
+                return true;
+            }
+
+            if (!LocalModuleParser.TryWriteEnabled(mod.ModuleFilePath, isEnabled: false))
+                return false;
+
+            if (!LocalModuleParser.TrySetAssembliesEnabled(mod.ModuleFilePath, enabled: false))
+            {
+                LocalModuleParser.TryWriteEnabled(mod.ModuleFilePath, isEnabled: true);
+                return false;
+            }
+
+            return true;
+        }
+
+        return DllDisableHelper.TrySetEnabled(GetModsFolder(gamePath), mod.RelativePath, enabled);
+    }
+
+    private void MigrateQuarantineToDisabled(string gamePath)
+    {
+        if (!Directory.Exists(_quarantineDir))
+            return;
+
+        var modsFolder = GetModsFolder(gamePath);
+        Directory.CreateDirectory(modsFolder);
+
+        foreach (var quarantinedPath in Directory.EnumerateFiles(_quarantineDir, "*.dll", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(_quarantineDir, quarantinedPath);
+            var disabledPath = DllDisableHelper.GetDisabledPath(modsFolder, relativePath);
+
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(disabledPath)!);
+                if (File.Exists(disabledPath))
+                    File.Delete(quarantinedPath);
+                else
+                    File.Move(quarantinedPath, disabledPath);
+            }
+            catch
+            {
+                // Best-effort migration; leave remaining files in quarantine.
+            }
+        }
+    }
 
     private static string GetDefaultCategory(LocalModKind kind) =>
         kind == LocalModKind.Module ? "module" : "dll";
@@ -217,10 +260,12 @@ public class InstalledModsService
             Kind = parsed.Kind,
             RelativePath = parsed.RelativePath,
             Title = parsed.Title,
+            ModuleName = parsed.ModuleName,
             Version = parsed.Version,
             ModuleFilePath = parsed.ModuleFilePath,
             DirectoryPath = parsed.DirectoryPath,
             LocalIconPath = parsed.LocalIconPath,
+            DependencyNames = parsed.DependencyNames.ToList(),
             Dependencies = parsed.Dependencies.ToList(),
             Assemblies = parsed.Assemblies.ToList(),
             IsEnabled = isEnabled,
@@ -234,41 +279,6 @@ public class InstalledModsService
                     ? File.GetCreationTimeUtc(sourcePath)
                     : Directory.GetCreationTimeUtc(parsed.DirectoryPath)).ToUnixTimeSeconds(),
         };
-    }
-
-    private List<ParsedLocalMod> FindQuarantinedDlls()
-    {
-        if (!Directory.Exists(_quarantineDir))
-            return [];
-
-        var results = new List<ParsedLocalMod>();
-
-        foreach (var dllPath in Directory.EnumerateFiles(_quarantineDir, "*.dll", SearchOption.AllDirectories))
-        {
-            var relativePath = Path.GetRelativePath(_quarantineDir, dllPath);
-            AssemblyName? assemblyName = null;
-            try
-            {
-                assemblyName = AssemblyName.GetAssemblyName(dllPath);
-            }
-            catch
-            {
-                // Keep file-name based metadata when the DLL cannot be inspected.
-            }
-
-            var directoryPath = Path.GetDirectoryName(dllPath) ?? _quarantineDir;
-            results.Add(new ParsedLocalMod
-            {
-                Kind = LocalModKind.Dll,
-                RelativePath = relativePath,
-                Title = assemblyName?.Name ?? Path.GetFileNameWithoutExtension(dllPath),
-                Version = assemblyName?.Version?.ToString() ?? "—",
-                DirectoryPath = directoryPath,
-                LocalIconPath = LocalModuleParser.FindLocalIcon(directoryPath),
-            });
-        }
-
-        return results;
     }
 
     private static string BuildDescription(ParsedLocalMod parsed)

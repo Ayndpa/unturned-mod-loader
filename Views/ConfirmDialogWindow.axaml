@@ -1,0 +1,56 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:UnturnedModLoader.ViewModels"
+        xmlns:c="https://codewf.com"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        d:DesignWidth="460" d:DesignHeight="220"
+        x:Class="UnturnedModLoader.Views.ConfirmDialogWindow"
+        x:DataType="vm:ConfirmDialogViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="{Binding Title}"
+        Width="460"
+        SizeToContent="Height"
+        MinHeight="180"
+        MaxHeight="420"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BgCanvasBrush}">
+
+    <Border Margin="20"
+            Background="{StaticResource BgPaperBrush}"
+            BorderBrush="{StaticResource HairlineBrush}"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="24,20">
+        <Grid RowDefinitions="Auto,*,Auto" RowSpacing="16">
+            <TextBlock Text="{Binding Title}"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource InkBrush}" />
+
+            <ScrollViewer Grid.Row="1"
+                          MaxHeight="220"
+                          VerticalScrollBarVisibility="Auto">
+                <TextBlock Text="{Binding Message}"
+                           FontSize="13"
+                           Foreground="{StaticResource InkSoftBrush}"
+                           TextWrapping="Wrap"
+                           LineHeight="20" />
+            </ScrollViewer>
+
+            <StackPanel Grid.Row="2"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Spacing="8">
+                <Button Classes="ghost"
+                        Content="{Binding CancelText}"
+                        Command="{Binding CancelCommand}" />
+                <Button Classes="primary"
+                        Content="{Binding ConfirmText}"
+                        Command="{Binding ConfirmCommand}" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

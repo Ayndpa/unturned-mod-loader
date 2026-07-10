@@ -385,17 +385,23 @@
                                           IsVisible="{Binding IsInstalledPage}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:InstalledModItemViewModel">
-                                        <Border Background="{StaticResource BgPaperBrush}"
+                                        <Border Classes.installed-mod-card="True"
+                                                Classes.disabled="{Binding !IsEnabled}"
+                                                Background="{StaticResource BgPaperBrush}"
                                                 BorderBrush="{StaticResource HairlineBrush}"
                                                 BorderThickness="1"
                                                 CornerRadius="10"
                                                 Padding="16,14"
                                                 Margin="0,0,0,8">
                                             <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
-                                                <CheckBox Grid.Column="0"
-                                                          IsChecked="{Binding IsEnabled}"
-                                                          VerticalAlignment="Center"
-                                                          Margin="0,0,14,0" />
+                                                <ToggleSwitch Grid.Column="0"
+                                                              IsChecked="{Binding IsEnabled}"
+                                                              IsEnabled="{Binding IsToggleAllowed}"
+                                                              ToolTip.Tip="{Binding #MainView.((vm:MainViewModel)DataContext).GameRunningToggleTooltip}"
+                                                              VerticalAlignment="Center"
+                                                              Margin="0,0,14,0"
+                                                              OnContent=""
+                                                              OffContent="" />
 
                                                 <Border Grid.Column="1"
                                                         Width="56" Height="56"
@@ -430,6 +436,16 @@
                                                                 CornerRadius="4"
                                                                 Padding="6,2">
                                                             <TextBlock Text="{Binding Category}"
+                                                                       FontSize="11"
+                                                                       Foreground="{StaticResource MidGrayBrush}" />
+                                                        </Border>
+                                                        <Border Background="{StaticResource BgSurfaceAltBrush}"
+                                                                BorderBrush="{StaticResource HairlineBrush}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="4"
+                                                                Padding="6,2"
+                                                                IsVisible="{Binding !IsEnabled}">
+                                                            <TextBlock Text="{c:I18n {x:Static i18n:InstalledModDetail.DisabledBadge}}"
                                                                        FontSize="11"
                                                                        Foreground="{StaticResource MidGrayBrush}" />
                                                         </Border>

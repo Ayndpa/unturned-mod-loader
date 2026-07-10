@@ -18,6 +18,8 @@ public static class Common
     public const string Skip = "Localization.Common.Skip";
     public const string Settings = "Localization.Common.Settings";
     public const string NoDescription = "Localization.Common.NoDescription";
+    public const string Confirm = "Localization.Common.Confirm";
+    public const string Cancel = "Localization.Common.Cancel";
 }
 
 public static class LocaleKeys
@@ -151,8 +153,18 @@ public static class Main
     public const string NoInstalledTitle = "Localization.Main.NoInstalledTitle";
     public const string NoInstalledHint = "Localization.Main.NoInstalledHint";
     public const string InstalledCount = "Localization.Main.InstalledCount";
+    public const string InstalledEnabledSummary = "Localization.Main.InstalledEnabledSummary";
     public const string InstalledRemoved = "Localization.Main.InstalledRemoved";
     public const string ParsingInstalled = "Localization.Main.ParsingInstalled";
+    public const string ModToggleEnabled = "Localization.Main.ModToggleEnabled";
+    public const string ModToggleDisabled = "Localization.Main.ModToggleDisabled";
+    public const string ModToggleFailed = "Localization.Main.ModToggleFailed";
+    public const string DisableCascadeTitle = "Localization.Main.DisableCascadeTitle";
+    public const string DisableCascadeMessage = "Localization.Main.DisableCascadeMessage";
+    public const string EnableDependencyTitle = "Localization.Main.EnableDependencyTitle";
+    public const string EnableDependencyMessage = "Localization.Main.EnableDependencyMessage";
+    public const string EnableWithDependencies = "Localization.Main.EnableWithDependencies";
+    public const string GameRunningToggleBlocked = "Localization.Main.GameRunningToggleBlocked";
 }
 
 public static class InstalledModDetail
@@ -162,6 +174,7 @@ public static class InstalledModDetail
     public const string TypeDll = "Localization.InstalledModDetail.TypeDll";
     public const string StatusEnabled = "Localization.InstalledModDetail.StatusEnabled";
     public const string StatusDisabled = "Localization.InstalledModDetail.StatusDisabled";
+    public const string DisabledBadge = "Localization.InstalledModDetail.DisabledBadge";
     public const string Version = "Localization.InstalledModDetail.Version";
     public const string Path = "Localization.InstalledModDetail.Path";
     public const string Directory = "Localization.InstalledModDetail.Directory";

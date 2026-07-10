@@ -6,6 +6,7 @@ public class InstalledMod
     public LocalModKind Kind { get; set; } = LocalModKind.Module;
     public string RelativePath { get; set; } = "";
     public string Title { get; set; } = "";
+    public string ModuleName { get; set; } = "";
     public string? Author { get; set; }
     public string? Version { get; set; }
     public string? Category { get; set; }
@@ -14,6 +15,7 @@ public class InstalledMod
     public string? LocalIconPath { get; set; }
     public string ModuleFilePath { get; set; } = "";
     public string DirectoryPath { get; set; } = "";
+    public List<string> DependencyNames { get; set; } = [];
     public List<string> Dependencies { get; set; } = [];
     public List<string> Assemblies { get; set; } = [];
     public bool IsEnabled { get; set; } = true;

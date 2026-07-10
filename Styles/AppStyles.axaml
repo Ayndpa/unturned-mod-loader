@@ -131,6 +131,14 @@
         <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
     </Style>
 
+    <Style Selector="ToggleSwitch">
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Border.installed-mod-card.disabled">
+        <Setter Property="Opacity" Value="0.62" />
+    </Style>
+
     <!-- ScrollViewer -->
     <Style Selector="ScrollViewer">
         <Setter Property="Background" Value="Transparent" />

@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using UnturnedModLoader.I18n;
@@ -30,6 +31,8 @@ public partial class MainViewModel : ViewModelBase
     private readonly Action? _onLogout;
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _loadCts;
+    private bool _isHandlingToggle;
+    private DispatcherTimer? _gameProcessTimer;
 
     [ObservableProperty]
     private MainPage _currentPage = MainPage.Browse;
@@ -66,6 +69,12 @@ public partial class MainViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _isSearchEmpty;
+
+    [ObservableProperty]
+    private bool _isGameRunning;
+
+    public string? GameRunningToggleTooltip =>
+        IsGameRunning ? L.Get(Main.GameRunningToggleBlocked) : null;
 
     public ObservableCollection<ModItemViewModel> Mods { get; } = [];
     public ObservableCollection<InstalledModItemViewModel> InstalledMods { get; } = [];
@@ -126,16 +135,25 @@ public partial class MainViewModel : ViewModelBase
         NotifyPageStates();
 
         if (page == MainPage.Browse)
+        {
+            StopGameProcessMonitoring();
             await LoadModsAsync();
+        }
         else
+        {
+            StartGameProcessMonitoring();
             await LoadInstalledModsAsync();
+        }
     }
 
     [RelayCommand]
     private async Task RefreshModsAsync()
     {
         if (IsInstalledPage)
+        {
+            StartGameProcessMonitoring();
             await LoadInstalledModsAsync();
+        }
         else
         {
             await LoadCategoriesAsync();
@@ -480,6 +498,7 @@ public partial class MainViewModel : ViewModelBase
                     RemoteId = mod.RemoteId,
                     Kind = mod.Kind,
                     Title = mod.Title,
+                    ModuleName = mod.ModuleName,
                     Author = mod.Author ?? "—",
                     Version = string.IsNullOrWhiteSpace(mod.Version) ? "—" : mod.Version,
                     Category = mod.Kind == LocalModKind.Module
@@ -493,23 +512,23 @@ public partial class MainViewModel : ViewModelBase
                     DirectoryPath = mod.DirectoryPath,
                     LocalIconPath = mod.LocalIconPath,
                     CoverUrl = mod.CoverUrl,
+                    DependencyNames = mod.DependencyNames,
                     Dependencies = mod.Dependencies,
                     Assemblies = mod.Assemblies,
                     IsEnabled = mod.IsEnabled,
                 };
 
-                vm.PropertyChanged += (_, e) =>
+                vm.PropertyChanged += async (_, e) =>
                 {
                     if (e.PropertyName == nameof(InstalledModItemViewModel.IsEnabled))
-                    {
-                        _installedModsService.SetEnabled(vm.RelativePath, GamePath, vm.IsEnabled);
-                        OnPropertyChanged(nameof(EnabledCount));
-                    }
+                        await HandleInstalledModToggleAsync(vm);
                 };
 
                 InstalledMods.Add(vm);
                 _ = LoadInstalledCoverAsync(vm);
             }
+
+            UpdateInstalledModToggleAvailability();
 
             if (InstalledMods.Count == 0)
             {
@@ -519,7 +538,7 @@ public partial class MainViewModel : ViewModelBase
                     isSearch: hasSearch,
                     title: hasSearch ? L.Get(Main.NoMatchTitle) : L.Get(Main.NoInstalledTitle),
                     subtitle: hasSearch ? L.Get(Main.NoMatchHint) : L.Get(Main.NoInstalledHint));
-                StatusText = L.Get(Main.InstalledCount, 0);
+                StatusText = L.Get(Main.InstalledEnabledSummary, 0, 0);
             }
             else
             {
@@ -527,7 +546,7 @@ public partial class MainViewModel : ViewModelBase
                 IsErrorState = false;
                 IsSearchEmpty = false;
                 ListMessage = "";
-                StatusText = L.Get(Main.InstalledCount, InstalledMods.Count);
+                StatusText = L.Get(Main.InstalledEnabledSummary, EnabledCount, InstalledMods.Count);
                 NotifyEmptyIconStates();
             }
 
@@ -541,6 +560,234 @@ public partial class MainViewModel : ViewModelBase
     }
 
     private void FilterInstalledMods() => _ = LoadInstalledModsAsync();
+
+    private void StartGameProcessMonitoring()
+    {
+        _gameProcessTimer ??= new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(2),
+        };
+
+        _gameProcessTimer.Tick -= OnGameProcessTimerTick;
+        _gameProcessTimer.Tick += OnGameProcessTimerTick;
+        _gameProcessTimer.Start();
+        RefreshGameRunningState();
+    }
+
+    private void StopGameProcessMonitoring()
+    {
+        if (_gameProcessTimer is null)
+            return;
+
+        _gameProcessTimer.Stop();
+        _gameProcessTimer.Tick -= OnGameProcessTimerTick;
+
+        if (!IsGameRunning)
+            return;
+
+        IsGameRunning = false;
+        UpdateInstalledModToggleAvailability();
+        OnPropertyChanged(nameof(GameRunningToggleTooltip));
+    }
+
+    private void OnGameProcessTimerTick(object? sender, EventArgs e) => RefreshGameRunningState();
+
+    private void RefreshGameRunningState()
+    {
+        var running = GameProcessService.IsRunning(GamePath);
+        if (running == IsGameRunning)
+            return;
+
+        IsGameRunning = running;
+        UpdateInstalledModToggleAvailability();
+        OnPropertyChanged(nameof(GameRunningToggleTooltip));
+
+        if (IsInstalledPage && !IsLoading)
+            UpdateStatus();
+    }
+
+    private void UpdateInstalledModToggleAvailability()
+    {
+        var canToggle = !IsGameRunning;
+        foreach (var vm in InstalledMods)
+            vm.CanToggle = canToggle;
+    }
+
+    partial void OnIsGameRunningChanged(bool value)
+    {
+        OnPropertyChanged(nameof(GameRunningToggleTooltip));
+        UpdateInstalledModToggleAvailability();
+    }
+
+    private async Task HandleInstalledModToggleAsync(InstalledModItemViewModel vm)
+    {
+        if (_isHandlingToggle)
+            return;
+
+        if (IsGameRunning)
+        {
+            RevertToggle(vm, !vm.IsEnabled);
+            StatusText = L.Get(Main.GameRunningToggleBlocked);
+            return;
+        }
+
+        var desiredEnabled = vm.IsEnabled;
+        var installedMods = _installedModsService.GetAll();
+        var installedMod = installedMods.FirstOrDefault(mod =>
+            string.Equals(mod.RelativePath, vm.RelativePath, StringComparison.OrdinalIgnoreCase));
+
+        if (installedMod is null)
+        {
+            RevertToggle(vm, !desiredEnabled);
+            StatusText = L.Get(Main.ModToggleFailed);
+            return;
+        }
+
+        _isHandlingToggle = true;
+        vm.IsTogglePending = true;
+
+        try
+        {
+            var pathsToEnable = new List<string>();
+            var pathsToDisable = new List<string>();
+
+            if (desiredEnabled)
+            {
+                pathsToEnable.AddRange(await BuildEnablePathsAsync(installedMod, installedMods));
+                if (pathsToEnable.Count == 0)
+                {
+                    RevertToggle(vm, false);
+                    return;
+                }
+            }
+            else
+            {
+                if (!await ConfirmDisableAsync(installedMod, installedMods, pathsToDisable))
+                {
+                    RevertToggle(vm, true);
+                    return;
+                }
+
+                pathsToDisable.Add(installedMod.RelativePath);
+            }
+
+            if (desiredEnabled)
+            {
+                if (!_installedModsService.SetEnabledMany(pathsToEnable, GamePath, enabled: true))
+                {
+                    RevertToggle(vm, false);
+                    StatusText = L.Get(Main.ModToggleFailed);
+                    return;
+                }
+
+                ApplyEnabledStateToViewModels(pathsToEnable, enabled: true);
+                StatusText = L.Get(Main.ModToggleEnabled, installedMod.Title);
+            }
+            else
+            {
+                if (!_installedModsService.SetEnabledMany(pathsToDisable, GamePath, enabled: false))
+                {
+                    RevertToggle(vm, true);
+                    StatusText = L.Get(Main.ModToggleFailed);
+                    return;
+                }
+
+                ApplyEnabledStateToViewModels(pathsToDisable, enabled: false);
+                StatusText = L.Get(Main.ModToggleDisabled, installedMod.Title);
+            }
+
+            OnPropertyChanged(nameof(EnabledCount));
+        }
+        finally
+        {
+            vm.IsTogglePending = false;
+            _isHandlingToggle = false;
+        }
+    }
+
+    private async Task<IReadOnlyList<string>> BuildEnablePathsAsync(
+        InstalledMod mod,
+        IReadOnlyList<InstalledMod> installedMods)
+    {
+        var paths = new List<string>();
+
+        if (mod.Kind == LocalModKind.Module)
+        {
+            var graph = ModuleDependencyGraph.Build(installedMods);
+            var dependencies = graph.ExpandDependenciesForEnable(mod, [mod.RelativePath]);
+            if (dependencies.Count > 0)
+            {
+                var names = dependencies
+                    .Select(dependency => dependency.Title)
+                    .Distinct(StringComparer.OrdinalIgnoreCase);
+
+                var confirmed = await DialogService.ConfirmAsync(
+                    _owner,
+                    L.Get(Main.EnableDependencyTitle),
+                    L.Get(Main.EnableDependencyMessage, string.Join(Environment.NewLine, names)),
+                    L.Get(Main.EnableWithDependencies));
+
+                if (!confirmed)
+                    return [];
+
+                foreach (var dependency in dependencies)
+                    paths.Add(dependency.RelativePath);
+            }
+        }
+
+        paths.Add(mod.RelativePath);
+        return paths;
+    }
+
+    private async Task<bool> ConfirmDisableAsync(
+        InstalledMod mod,
+        IReadOnlyList<InstalledMod> installedMods,
+        List<string> pathsToDisable)
+    {
+        if (mod.Kind != LocalModKind.Module || string.IsNullOrWhiteSpace(mod.ModuleName))
+            return true;
+
+        var graph = ModuleDependencyGraph.Build(installedMods);
+        var dependents = graph.GetEnabledDependents(mod);
+        if (dependents.Count == 0)
+            return true;
+
+        foreach (var dependent in dependents.OrderByDescending(item => item.RelativePath, StringComparer.OrdinalIgnoreCase))
+            pathsToDisable.Add(dependent.RelativePath);
+
+        var names = dependents
+            .Select(dependent => dependent.Title)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        var message = L.Get(Main.DisableCascadeMessage, string.Join(Environment.NewLine, names));
+        return await DialogService.ConfirmAsync(
+            _owner,
+            L.Get(Main.DisableCascadeTitle),
+            message,
+            L.Get(Common.Confirm));
+    }
+
+    private void RevertToggle(InstalledModItemViewModel vm, bool enabled)
+    {
+        _isHandlingToggle = true;
+        vm.IsEnabled = enabled;
+        _isHandlingToggle = false;
+    }
+
+    private void ApplyEnabledStateToViewModels(IEnumerable<string> relativePaths, bool enabled)
+    {
+        var targets = relativePaths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        _isHandlingToggle = true;
+        try
+        {
+            foreach (var item in InstalledMods.Where(vm => targets.Contains(vm.RelativePath)))
+                item.IsEnabled = enabled;
+        }
+        finally
+        {
+            _isHandlingToggle = false;
+        }
+    }
 
     private bool MatchesInstalledSearch(InstalledMod mod)
     {
@@ -682,8 +929,14 @@ public partial class MainViewModel : ViewModelBase
 
         if (IsInstalledPage)
         {
+            if (IsGameRunning)
+            {
+                StatusText = L.Get(Main.GameRunningToggleBlocked);
+                return;
+            }
+
             StatusText = GamePathValidator.IsValid(GamePath)
-                ? L.Get(Main.InstalledCount, InstalledMods.Count)
+                ? L.Get(Main.InstalledEnabledSummary, EnabledCount, InstalledMods.Count)
                 : L.Get(Main.GamePathNotConfigured);
             return;
         }

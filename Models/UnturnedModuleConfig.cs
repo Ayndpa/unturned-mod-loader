@@ -51,9 +51,12 @@ public class ParsedLocalMod
     public string Title { get; init; } = "";
     public string Version { get; init; } = "";
     public bool IsEnabled { get; init; } = true;
+    public string ModuleName { get; init; } = "";
     public string ModuleFilePath { get; init; } = "";
     public string DirectoryPath { get; init; } = "";
     public string? LocalIconPath { get; init; }
+    public IReadOnlyList<string> DependencyNames { get; init; } = [];
     public IReadOnlyList<string> Dependencies { get; init; } = [];
     public IReadOnlyList<string> Assemblies { get; init; } = [];
+    public IReadOnlyList<string> ResolvedAssemblyPaths { get; init; } = [];
 }
