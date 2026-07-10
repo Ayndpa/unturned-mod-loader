@@ -195,6 +195,12 @@ public static class ModDetail
     public const string FileSize = "Localization.ModDetail.FileSize";
     public const string Tags = "Localization.ModDetail.Tags";
     public const string NoTags = "Localization.ModDetail.NoTags";
+    public const string Download = "Localization.ModDetail.Download";
+    public const string Downloading = "Localization.ModDetail.Downloading";
+    public const string DownloadFailed = "Localization.ModDetail.DownloadFailed";
+    public const string DownloadInstalled = "Localization.ModDetail.DownloadInstalled";
+    public const string DownloadSaved = "Localization.ModDetail.DownloadSaved";
+    public const string LoginRequired = "Localization.ModDetail.LoginRequired";
 }
 
 public static class Settings

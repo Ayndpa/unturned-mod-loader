@@ -28,6 +28,9 @@ public class RemoteMod
     [JsonPropertyName("file_url")]
     public string? FileUrl { get; set; }
 
+    [JsonPropertyName("has_file")]
+    public bool HasFile { get; set; }
+
     [JsonPropertyName("downloads")]
     public int Downloads { get; set; }
 

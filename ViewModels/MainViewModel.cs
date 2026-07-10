@@ -179,12 +179,26 @@ public partial class MainViewModel : ViewModelBase
         if (mod is null)
             return;
 
-        var viewModel = new ModDetailViewModel(_imageService, _modsApi.BaseUrl);
+        var viewModel = new ModDetailViewModel(
+            _imageService,
+            _modsApi.BaseUrl,
+            _modsApi,
+            _settings,
+            _owner);
         var dialog = new ModDetailWindow { DataContext = viewModel };
+        var downloadCompleted = false;
 
         viewModel.CloseRequested += () => dialog.Close();
-        _ = viewModel.LoadAsync(mod.Id, _modsApi);
+        viewModel.DownloadCompleted += () => downloadCompleted = true;
+        _ = viewModel.LoadAsync(mod.Id);
         await dialog.ShowDialog(_owner);
+
+        if (downloadCompleted && GamePathValidator.IsValid(GamePath))
+        {
+            _installedModsService.ScanAndMerge(GamePath);
+            if (IsInstalledPage)
+                await LoadInstalledModsAsync();
+        }
     }
 
     [RelayCommand]

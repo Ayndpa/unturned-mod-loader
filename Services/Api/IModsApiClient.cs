@@ -8,4 +8,5 @@ public interface IModsApiClient
     Task<CategoriesListResult> GetCategoriesAsync(CancellationToken cancellationToken = default);
     Task<ModsListResult> GetModsAsync(ModsQuery query, CancellationToken cancellationToken = default);
     Task<ModDetailResult> GetModAsync(int id, CancellationToken cancellationToken = default);
+    Task<ModFileDownloadResult> DownloadModFileAsync(int id, CancellationToken cancellationToken = default);
 }

@@ -232,7 +232,13 @@
       "Comments": "评论",
       "FileSize": "文件大小",
       "Tags": "标签",
-      "NoTags": "无标签"
+      "NoTags": "无标签",
+      "Download": "下载模组",
+      "Downloading": "下载中…",
+      "DownloadFailed": "下载失败，请稍后重试。",
+      "DownloadInstalled": "模组已安装到游戏 Modules 目录。",
+      "DownloadSaved": "模组已保存到：{0}",
+      "LoginRequired": "下载模组需要先登录账号。"
     }
   }
 }

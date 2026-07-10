@@ -1,12 +1,14 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using UnturnedModLoader.I18n;
 using UnturnedModLoader.Models.Api;
 using UnturnedModLoader.Services;
 
 namespace UnturnedModLoader.Services.Api;
 
-public sealed class HttpModsApiClient : IModsApiClient, IDisposable
+public sealed partial class HttpModsApiClient : IModsApiClient, IDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -14,8 +16,9 @@ public sealed class HttpModsApiClient : IModsApiClient, IDisposable
     };
 
     private readonly HttpClient _http;
+    private readonly HttpClient _downloadHttp;
 
-    public HttpModsApiClient(string baseUrl, HttpClient? httpClient = null)
+    public HttpModsApiClient(string baseUrl, HttpClient? httpClient = null, HttpClient? downloadHttpClient = null)
     {
         BaseUrl = baseUrl.TrimEnd('/');
         _http = httpClient ?? new HttpClient
@@ -23,9 +26,10 @@ public sealed class HttpModsApiClient : IModsApiClient, IDisposable
             BaseAddress = new Uri(BaseUrl + "/"),
             Timeout = TimeSpan.FromSeconds(15),
         };
+        _downloadHttp = downloadHttpClient ?? _http;
     }
 
-    public HttpModsApiClient(HttpClient httpClient)
+    public HttpModsApiClient(HttpClient httpClient, HttpClient? downloadHttpClient = null)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         if (httpClient.BaseAddress is not Uri baseAddress)
@@ -33,6 +37,7 @@ public sealed class HttpModsApiClient : IModsApiClient, IDisposable
 
         BaseUrl = baseAddress.AbsoluteUri.TrimEnd('/');
         _http = httpClient;
+        _downloadHttp = downloadHttpClient ?? httpClient;
     }
 
     public string BaseUrl { get; }
@@ -179,6 +184,77 @@ public sealed class HttpModsApiClient : IModsApiClient, IDisposable
             return new ModDetailResult(false, null, L.Get(I18n.ApiMessages.LoadModDetailFailed, ex.Message));
         }
     }
+
+    public async Task<ModFileDownloadResult> DownloadModFileAsync(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = await _downloadHttp.GetAsync($"api/mods/{id}/file", cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                return new ModFileDownloadResult(
+                    false,
+                    null,
+                    null,
+                    ParseErrorMessage(body) ?? L.Get(I18n.ApiMessages.RequestFailed, (int)response.StatusCode));
+            }
+
+            var content = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            if (content.Length == 0)
+                return new ModFileDownloadResult(false, null, null, L.Get(I18n.ApiMessages.InvalidResponse));
+
+            var fileName = ParseDownloadFileName(response.Content.Headers.ContentDisposition)
+                ?? $"mod-{id}.zip";
+
+            return new ModFileDownloadResult(true, content, fileName, null);
+        }
+        catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (TaskCanceledException)
+        {
+            return new ModFileDownloadResult(false, null, null, L.Get(I18n.ApiMessages.Timeout));
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ModFileDownloadResult(false, null, null, L.Get(I18n.ApiMessages.CannotConnect, ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return new ModFileDownloadResult(false, null, null, L.Get(I18n.ApiMessages.RequestError, ex.Message));
+        }
+    }
+
+    private static string? ParseDownloadFileName(ContentDispositionHeaderValue? disposition)
+    {
+        if (disposition is null)
+            return null;
+
+        if (!string.IsNullOrWhiteSpace(disposition.FileNameStar))
+            return disposition.FileNameStar.Trim('"');
+
+        if (!string.IsNullOrWhiteSpace(disposition.FileName))
+            return disposition.FileName.Trim('"');
+
+        var raw = disposition.ToString();
+        var utf8Match = Utf8FileNameRegex().Match(raw);
+        if (utf8Match.Success)
+            return Uri.UnescapeDataString(utf8Match.Groups[1].Value);
+
+        var plainMatch = PlainFileNameRegex().Match(raw);
+        return plainMatch.Success ? plainMatch.Groups[1].Value : null;
+    }
+
+    [GeneratedRegex(@"filename\*=UTF-8''([^;]+)", RegexOptions.IgnoreCase)]
+    private static partial Regex Utf8FileNameRegex();
+
+    [GeneratedRegex(@"filename=""([^""]+)""", RegexOptions.IgnoreCase)]
+    private static partial Regex PlainFileNameRegex();
 
     private static string BuildRequestUri(ModsQuery query, int page)
     {

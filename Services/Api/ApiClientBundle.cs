@@ -7,6 +7,7 @@ namespace UnturnedModLoader.Services.Api;
 public sealed class ApiClientBundle : IDisposable
 {
     private readonly HttpClient _http;
+    private readonly HttpClient _downloadHttp;
     private readonly CookieContainer _cookies;
     private readonly Uri _baseUri;
 
@@ -32,9 +33,14 @@ public sealed class ApiClientBundle : IDisposable
             BaseAddress = new Uri(baseUrl + "/"),
             Timeout = TimeSpan.FromSeconds(15),
         };
+        _downloadHttp = new HttpClient(handler, disposeHandler: false)
+        {
+            BaseAddress = new Uri(baseUrl + "/"),
+            Timeout = TimeSpan.FromMinutes(10),
+        };
 
         Auth = new HttpAuthApiClient(_http);
-        Mods = new HttpModsApiClient(_http);
+        Mods = new HttpModsApiClient(_http, _downloadHttp);
     }
 
     public void SaveSessionToSettings(AppSettings settings, AuthUser? user = null)
@@ -68,5 +74,9 @@ public sealed class ApiClientBundle : IDisposable
         _cookies.Add(_baseUri, new Cookie("token", settings.AuthToken, "/", _baseUri.Host));
     }
 
-    public void Dispose() => _http.Dispose();
+    public void Dispose()
+    {
+        _downloadHttp.Dispose();
+        _http.Dispose();
+    }
 }

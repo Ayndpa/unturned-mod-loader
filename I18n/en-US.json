@@ -232,7 +232,13 @@
       "Comments": "Comments",
       "FileSize": "File Size",
       "Tags": "Tags",
-      "NoTags": "No tags"
+      "NoTags": "No tags",
+      "Download": "Download Mod",
+      "Downloading": "Downloading…",
+      "DownloadFailed": "Download failed. Please try again later.",
+      "DownloadInstalled": "Mod installed to the game Modules folder.",
+      "DownloadSaved": "Mod saved to: {0}",
+      "LoginRequired": "Sign in to download mods."
     }
   }
 }
