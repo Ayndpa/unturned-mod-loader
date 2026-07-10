@@ -1,17 +1,23 @@
 using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using UnturnedModLoader.Models;
+using UnturnedModLoader.Services;
 
 namespace UnturnedModLoader.ViewModels;
 
 public partial class MainViewModel : ViewModelBase
 {
+    private readonly SettingsService _settingsService;
+    private readonly AppSettings _settings;
+    private readonly FolderPickerService _folderPicker;
+
     [ObservableProperty]
     private string _searchText = "";
 
     [ObservableProperty]
-    private string _gamePath = @"C:\Program Files (x86)\Steam\steamapps\common\Unturned";
+    private string _gamePath = "";
 
     [ObservableProperty]
     private string _selectedCategory = "全部";
@@ -25,9 +31,56 @@ public partial class MainViewModel : ViewModelBase
     public int EnabledCount => Mods.Count(m => m.IsEnabled);
     public int TotalCount => Mods.Count;
 
-    public MainViewModel()
+    public MainViewModel(
+        SettingsService settingsService,
+        AppSettings settings,
+        FolderPickerService folderPicker)
     {
+        _settingsService = settingsService;
+        _settings = settings;
+        _folderPicker = folderPicker;
+        _gamePath = settings.GamePath;
         LoadMockData();
+        UpdateStatus();
+    }
+
+    [RelayCommand]
+    private async Task BrowseGamePathAsync()
+    {
+        var picked = await _folderPicker.PickFolderAsync(
+            "选择 Unturned 游戏目录",
+            string.IsNullOrWhiteSpace(GamePath) ? null : GamePath);
+
+        if (picked is null)
+            return;
+
+        GamePath = picked;
+        if (GamePathValidator.IsValid(GamePath))
+        {
+            _settings.GamePath = GamePath;
+            _settingsService.Save(_settings);
+            StatusText = "游戏路径已更新";
+        }
+        else
+        {
+            StatusText = $"无效目录：未找到 {GamePathValidator.ExecutableName}";
+        }
+    }
+
+    partial void OnGamePathChanged(string value)
+    {
+        if (GamePathValidator.IsValid(value))
+        {
+            _settings.GamePath = value;
+            _settingsService.Save(_settings);
+        }
+
+        UpdateStatus();
+    }
+
+    private void UpdateStatus()
+    {
+        StatusText = GamePathValidator.IsValid(GamePath) ? "就绪" : "游戏路径无效";
     }
 
     private void LoadMockData()
