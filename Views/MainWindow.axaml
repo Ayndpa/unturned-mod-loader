@@ -168,9 +168,9 @@
                             <TextBlock Text="{c:I18n {x:Static i18n:Main.OpenModsFolder}}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Button Classes="sidebar" Command="{Binding BrowseGamePathCommand}">
+                    <Button Classes="sidebar" Command="{Binding OpenGameFolderCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="10">
-                            <LucideIcon Kind="FolderSearch" Size="16" Foreground="{StaticResource MidGrayBrush}" />
+                            <LucideIcon Kind="FolderOpen" Size="16" Foreground="{StaticResource MidGrayBrush}" />
                             <TextBlock Text="{c:I18n {x:Static i18n:Main.BrowseGameFolder}}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -312,19 +312,14 @@
                                           IsVisible="{Binding IsBrowsePage}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:ModItemViewModel">
-                                        <Border Background="{StaticResource BgPaperBrush}"
-                                                BorderBrush="{StaticResource HairlineBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="10"
-                                                Padding="16,14"
-                                                Margin="0,0,0,8">
-                                            <Grid ColumnDefinitions="Auto,Auto,*,Auto">
-                                                <CheckBox Grid.Column="0"
-                                                          IsChecked="{Binding IsEnabled}"
-                                                          VerticalAlignment="Center"
-                                                          Margin="0,0,14,0" />
-
-                                                <Border Grid.Column="1"
+                                        <Button Classes="mod-card"
+                                                HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Stretch"
+                                                Margin="0,0,0,8"
+                                                Command="{Binding #MainView.((vm:MainViewModel)DataContext).OpenModDetailsCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Grid ColumnDefinitions="Auto,*">
+                                                <Border Grid.Column="0"
                                                         Width="56" Height="56"
                                                         CornerRadius="8"
                                                         ClipToBounds="True"
@@ -345,7 +340,7 @@
                                                     </Panel>
                                                 </Border>
 
-                                                <StackPanel Grid.Column="2" Spacing="6">
+                                                <StackPanel Grid.Column="1" Spacing="6">
                                                     <StackPanel Orientation="Horizontal" Spacing="10">
                                                         <TextBlock Text="{Binding Name}"
                                                                    FontSize="14"
@@ -380,19 +375,8 @@
                                                                TextTrimming="CharacterEllipsis"
                                                                Opacity="0.85" />
                                                 </StackPanel>
-
-                                                <Button Grid.Column="3"
-                                                        Classes="icon"
-                                                        ToolTip.Tip="{c:I18n {x:Static i18n:Main.Details}}"
-                                                        Padding="8"
-                                                        VerticalAlignment="Center"
-                                                        Margin="12,0,0,0"
-                                                        Command="{Binding #MainView.((vm:MainViewModel)DataContext).OpenModDetailsCommand}"
-                                                        CommandParameter="{Binding}">
-                                                    <LucideIcon Kind="Info" Size="16" />
-                                                </Button>
                                             </Grid>
-                                        </Border>
+                                        </Button>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -525,12 +509,6 @@
                                TextTrimming="CharacterEllipsis"
                                MaxWidth="500"
                                VerticalAlignment="Center" />
-                    <Button Classes="icon"
-                            ToolTip.Tip="{c:I18n {x:Static i18n:Main.BrowseGameFolder}}"
-                            Command="{Binding BrowseGamePathCommand}"
-                            Padding="6">
-                        <LucideIcon Kind="FolderOpen" Size="14" />
-                    </Button>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1"
@@ -539,11 +517,20 @@
                             VerticalAlignment="Center"
                             Margin="0,0,24,0">
                     <LucideIcon Kind="Puzzle" Size="14" Foreground="{StaticResource MidGrayBrush}" />
-                    <TextBlock FontSize="12" Foreground="{StaticResource MidGrayBrush}" VerticalAlignment="Center">
+                    <TextBlock FontSize="12"
+                               Foreground="{StaticResource MidGrayBrush}"
+                               VerticalAlignment="Center"
+                               IsVisible="{Binding IsInstalledPage}">
                         <Run Text="{Binding EnabledCount}" FontWeight="SemiBold" Foreground="{StaticResource InkBrush}" />
                         <Run Text="/" />
                         <Run Text="{Binding TotalCount}" />
                     </TextBlock>
+                    <TextBlock Text="{Binding TotalCount}"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource InkBrush}"
+                               VerticalAlignment="Center"
+                               IsVisible="{Binding IsBrowsePage}" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="2"

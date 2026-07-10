@@ -17,9 +17,6 @@ public partial class ModItemViewModel : ViewModelBase
     public int LikeCount { get; init; }
 
     [ObservableProperty]
-    private bool _isEnabled;
-
-    [ObservableProperty]
     private Bitmap? _coverImage;
 
     [ObservableProperty]

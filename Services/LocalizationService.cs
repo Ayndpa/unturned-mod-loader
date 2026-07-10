@@ -15,7 +15,7 @@ public static class LocalizationService
     public static bool IsInitialized { get; private set; }
 
     public static string CurrentLocaleCode =>
-        I18nManager.Instance.Culture.TwoLetterISOLanguageName == "zh" ? "zh" : "en";
+        I18nManager.Instance.Culture is { TwoLetterISOLanguageName: "zh" } ? "zh" : "en";
 
     public static void Initialize(AppSettings settings)
     {
@@ -36,7 +36,7 @@ public static class LocalizationService
     {
         var culture = ToCultureInfo(localeCode);
         var i18n = I18nManager.Instance;
-        if (i18n.Culture.Name == culture.Name)
+        if (i18n.Culture?.Name == culture.Name)
             return;
 
         settings.Locale = localeCode;

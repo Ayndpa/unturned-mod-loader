@@ -28,7 +28,6 @@ public partial class MainViewModel : ViewModelBase
     private readonly InstalledModsService _installedModsService;
     private readonly Window _owner;
     private readonly Action? _onLogout;
-    private readonly Dictionary<int, bool> _enabledStates = [];
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _loadCts;
 
@@ -75,9 +74,7 @@ public partial class MainViewModel : ViewModelBase
     public bool IsBrowsePage => CurrentPage == MainPage.Browse;
     public bool IsInstalledPage => CurrentPage == MainPage.Installed;
 
-    public int EnabledCount => IsInstalledPage
-        ? InstalledMods.Count(m => m.IsEnabled)
-        : Mods.Count(m => m.IsEnabled);
+    public int EnabledCount => InstalledMods.Count(m => m.IsEnabled);
 
     public int TotalCount => IsInstalledPage ? InstalledMods.Count : Mods.Count;
     public string Username => _settings.Username ?? "";
@@ -226,6 +223,18 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void OpenGameFolder()
+    {
+        if (!GamePathValidator.IsValid(GamePath))
+        {
+            StatusText = L.Get(Main.GamePathInvalid);
+            return;
+        }
+
+        _installedModsService.OpenGameFolder(GamePath);
+    }
+
+    [RelayCommand]
     private async Task OpenSettingsAsync()
     {
         var viewModel = new SettingsViewModel(
@@ -261,29 +270,6 @@ public partial class MainViewModel : ViewModelBase
 
         if (logoutTriggered)
             _onLogout?.Invoke();
-    }
-
-    [RelayCommand]
-    private async Task BrowseGamePathAsync()
-    {
-        var picked = await _folderPicker.PickFolderAsync(
-            L.Get(GamePathKeys.PickerTitle),
-            string.IsNullOrWhiteSpace(GamePath) ? null : GamePath);
-
-        if (picked is null)
-            return;
-
-        GamePath = picked;
-        if (GamePathValidator.IsValid(GamePath))
-        {
-            _settings.GamePath = GamePath;
-            _settingsService.Save(_settings);
-            StatusText = L.Get(Main.GamePathUpdated);
-        }
-        else
-        {
-            StatusText = L.Get(GamePathKeys.Invalid, GamePathValidator.ExecutableName);
-        }
     }
 
     partial void OnCurrentPageChanged(MainPage value) => NotifyPageStates();
@@ -398,12 +384,6 @@ public partial class MainViewModel : ViewModelBase
         IsLoading = true;
         IsEmpty = false;
         ListMessage = L.Get(Main.LoadingMods);
-
-        foreach (var mod in Mods)
-        {
-            if (mod.IsEnabled)
-                _enabledStates[mod.Id] = true;
-        }
 
         try
         {
@@ -594,16 +574,6 @@ public partial class MainViewModel : ViewModelBase
                 FileUrl = remote.FileUrl,
                 Downloads = remote.Downloads,
                 LikeCount = remote.LikeCount,
-                IsEnabled = _enabledStates.TryGetValue(remote.Id, out var enabled) && enabled,
-            };
-
-            vm.PropertyChanged += (_, e) =>
-            {
-                if (e.PropertyName == nameof(ModItemViewModel.IsEnabled))
-                {
-                    _enabledStates[vm.Id] = vm.IsEnabled;
-                    OnPropertyChanged(nameof(EnabledCount));
-                }
             };
 
             Mods.Add(vm);

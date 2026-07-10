@@ -169,12 +169,23 @@ public class InstalledModsService
 
         var folder = GetModsFolder(gamePath);
         Directory.CreateDirectory(folder);
+        OpenFolderInExplorer(folder);
+    }
+
+    public void OpenGameFolder(string gamePath)
+    {
+        if (!GamePathValidator.IsValid(gamePath))
+            return;
+
+        OpenFolderInExplorer(gamePath);
+    }
+
+    private static void OpenFolderInExplorer(string folder) =>
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
         {
             FileName = folder,
             UseShellExecute = true,
         });
-    }
 
     public void Save()
     {

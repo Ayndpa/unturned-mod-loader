@@ -75,6 +75,21 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
+    <Style Selector="Button.mod-card">
+        <Setter Property="Background" Value="{StaticResource BgPaperBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource HairlineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="16,14" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+
+    <Style Selector="Button.mod-card:pointerover">
+        <Setter Property="Background" Value="{StaticResource BgSurfaceAltBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource InkSoftBrush}" />
+    </Style>
+
     <Style Selector="Button.iconText">
         <Setter Property="Padding" Value="12,8" />
     </Style>
