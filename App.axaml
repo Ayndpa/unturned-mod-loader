@@ -1,0 +1,37 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="UnturnedModLoader.App"
+             xmlns:local="using:UnturnedModLoader"
+             RequestedThemeVariant="Light">
+
+    <Application.Resources>
+        <Color x:Key="BgCanvas">#f5f5f5</Color>
+        <Color x:Key="BgPaper">#ffffff</Color>
+        <Color x:Key="BgSurfaceAlt">#fafafa</Color>
+        <Color x:Key="Ink">#0a0a0a</Color>
+        <Color x:Key="InkSoft">#171717</Color>
+        <Color x:Key="MidGray">#737373</Color>
+        <Color x:Key="Hairline">#e5e5e5</Color>
+        <Color x:Key="Ember">#e7000b</Color>
+        <Color x:Key="Success">#166534</Color>
+
+        <SolidColorBrush x:Key="BgCanvasBrush" Color="{StaticResource BgCanvas}" />
+        <SolidColorBrush x:Key="BgPaperBrush" Color="{StaticResource BgPaper}" />
+        <SolidColorBrush x:Key="BgSurfaceAltBrush" Color="{StaticResource BgSurfaceAlt}" />
+        <SolidColorBrush x:Key="InkBrush" Color="{StaticResource Ink}" />
+        <SolidColorBrush x:Key="InkSoftBrush" Color="{StaticResource InkSoft}" />
+        <SolidColorBrush x:Key="MidGrayBrush" Color="{StaticResource MidGray}" />
+        <SolidColorBrush x:Key="HairlineBrush" Color="{StaticResource Hairline}" />
+        <SolidColorBrush x:Key="EmberBrush" Color="{StaticResource Ember}" />
+        <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource Success}" />
+    </Application.Resources>
+
+    <Application.DataTemplates>
+        <local:ViewLocator />
+    </Application.DataTemplates>
+
+    <Application.Styles>
+        <FluentTheme />
+        <StyleInclude Source="avares://UnturnedModLoader/Styles/AppStyles.axaml" />
+    </Application.Styles>
+</Application>
