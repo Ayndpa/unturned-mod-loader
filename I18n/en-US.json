@@ -223,6 +223,9 @@
       "NoDependencies": "No dependencies",
       "NoAssemblies": "No assemblies"
     },
+    "ImagePreview": {
+      "Title": "Preview"
+    },
     "ModDetail": {
       "Title": "Mod Details",
       "Loading": "Loading details…",

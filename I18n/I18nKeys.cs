@@ -184,6 +184,11 @@ public static class InstalledModDetail
     public const string NoAssemblies = "Localization.InstalledModDetail.NoAssemblies";
 }
 
+public static class ImagePreview
+{
+    public const string Title = "Localization.ImagePreview.Title";
+}
+
 public static class ModDetail
 {
     public const string Title = "Localization.ModDetail.Title";

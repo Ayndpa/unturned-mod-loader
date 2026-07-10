@@ -78,25 +78,13 @@
                     <StackPanel Spacing="16">
 
                         <Grid ColumnDefinitions="140,*" ColumnSpacing="16">
-                            <Border Grid.Column="0"
-                                    Width="140" Height="140"
-                                    CornerRadius="10"
-                                    ClipToBounds="True"
-                                    Background="{StaticResource BgSurfaceAltBrush}"
-                                    BorderBrush="{StaticResource HairlineBrush}"
-                                    BorderThickness="1">
-                                <Panel>
-                                    <Image Source="{Binding CoverImage}"
-                                           Stretch="UniformToFill"
-                                           IsVisible="{Binding HasCoverImage}" />
-                                    <LucideIcon Kind="ImageOff"
-                                                Size="32"
-                                                Foreground="{StaticResource MidGrayBrush}"
-                                                IsVisible="{Binding !HasCoverImage}"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center" />
-                                </Panel>
-                            </Border>
+                            <controls:ModCoverPreview Grid.Column="0"
+                                                      Source="{Binding CoverImage}"
+                                                      HasImage="{Binding HasCoverImage}"
+                                                      PreviewTitle="{Binding Title}"
+                                                      ThumbnailSize="140"
+                                                      HoverZoomSize="320"
+                                                      PlaceholderIconSize="32" />
 
                             <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Title}"

@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:UnturnedModLoader.ViewModels"
+        xmlns:controls="using:UnturnedModLoader.Controls"
         xmlns:i18n="using:UnturnedModLoader.I18n"
         xmlns:c="https://codewf.com"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -319,26 +320,13 @@
                                                 Command="{Binding #MainView.((vm:MainViewModel)DataContext).OpenModDetailsCommand}"
                                                 CommandParameter="{Binding}">
                                             <Grid ColumnDefinitions="Auto,*">
-                                                <Border Grid.Column="0"
-                                                        Width="56" Height="56"
-                                                        CornerRadius="8"
-                                                        ClipToBounds="True"
-                                                        Background="{StaticResource BgSurfaceAltBrush}"
-                                                        BorderBrush="{StaticResource HairlineBrush}"
-                                                        BorderThickness="1"
-                                                        Margin="0,0,14,0">
-                                                    <Panel>
-                                                        <Image Source="{Binding CoverImage}"
-                                                               Stretch="UniformToFill"
-                                                               IsVisible="{Binding HasCoverImage}" />
-                                                        <LucideIcon Kind="ImageOff"
-                                                                    Size="20"
-                                                                    Foreground="{StaticResource MidGrayBrush}"
-                                                                    IsVisible="{Binding !HasCoverImage}"
-                                                                    HorizontalAlignment="Center"
-                                                                    VerticalAlignment="Center" />
-                                                    </Panel>
-                                                </Border>
+                                                <controls:ModCoverPreview Grid.Column="0"
+                                                                          Source="{Binding CoverImage}"
+                                                                          HasImage="{Binding HasCoverImage}"
+                                                                          PreviewTitle="{Binding Name}"
+                                                                          ThumbnailSize="56"
+                                                                          HoverZoomSize="220"
+                                                                          Margin="0,0,14,0" />
 
                                                 <StackPanel Grid.Column="1" Spacing="6">
                                                     <StackPanel Orientation="Horizontal" Spacing="10">

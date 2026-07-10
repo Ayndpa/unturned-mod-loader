@@ -1,0 +1,52 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:i18n="using:UnturnedModLoader.I18n"
+        xmlns:c="https://codewf.com"
+        x:Class="UnturnedModLoader.Views.ImagePreviewWindow"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="{c:I18n {x:Static i18n:ImagePreview.Title}}"
+        Width="720" Height="540"
+        MinWidth="360" MinHeight="280"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BgCanvasBrush}">
+
+    <Border Margin="16"
+            Background="{StaticResource BgPaperBrush}"
+            BorderBrush="{StaticResource HairlineBrush}"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="16">
+        <Grid RowDefinitions="Auto,*">
+
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                <TextBlock x:Name="TitleText"
+                           FontSize="15"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource InkBrush}"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="1"
+                        Classes="icon"
+                        Click="OnCloseClick"
+                        ToolTip.Tip="{c:I18n {x:Static i18n:Common.Close}}">
+                    <LucideIcon Kind="X" Size="18" />
+                </Button>
+            </Grid>
+
+            <Border Grid.Row="1"
+                    Background="{StaticResource BgSurfaceAltBrush}"
+                    BorderBrush="{StaticResource HairlineBrush}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    ClipToBounds="True">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                              VerticalScrollBarVisibility="Auto">
+                    <Image x:Name="PreviewImage"
+                           Stretch="Uniform"
+                           MaxWidth="1200"
+                           MaxHeight="900" />
+                </ScrollViewer>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

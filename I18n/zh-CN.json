@@ -223,6 +223,9 @@
       "NoDependencies": "无依赖项",
       "NoAssemblies": "无程序集"
     },
+    "ImagePreview": {
+      "Title": "预览图"
+    },
     "ModDetail": {
       "Title": "模组详情",
       "Loading": "正在加载详情…",
