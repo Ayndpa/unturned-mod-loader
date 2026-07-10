@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using UnturnedModLoader.Models;
@@ -75,7 +76,7 @@ public partial class OnboardingViewModel : ViewModelBase
         {
             SteamDetectionResult result;
             if (OperatingSystem.IsWindows())
-                result = await Task.Run(static () => SteamLocator.DetectUnturned());
+                result = await Task.Run(DetectOnWindows);
             else
                 result = new(false, null, "自动检测仅支持 Windows 系统。");
 
@@ -107,15 +108,20 @@ public partial class OnboardingViewModel : ViewModelBase
     }
 
     [RelayCommand(CanExecute = nameof(CanFinish))]
-    private void Finish()
+    private void Finish() => CompleteOnboarding(saveGamePath: true);
+
+    [RelayCommand]
+    private void Skip() => CompleteOnboarding(saveGamePath: false);
+
+    private bool CanFinish => IsPathValid;
+
+    private void CompleteOnboarding(bool saveGamePath)
     {
         _settings.OnboardingCompleted = true;
-        _settings.GamePath = GamePath;
+        _settings.GamePath = saveGamePath && IsPathValid ? GamePath : "";
         _settingsService.Save(_settings);
         Completed?.Invoke(_settings);
     }
-
-    private bool CanFinish => IsPathValid;
 
     partial void OnCurrentStepChanged(int value)
     {
@@ -143,4 +149,7 @@ public partial class OnboardingViewModel : ViewModelBase
     {
         IsPathValid = GamePathValidator.IsValid(GamePath);
     }
+
+    [SupportedOSPlatform("windows")]
+    private static SteamDetectionResult DetectOnWindows() => SteamLocator.DetectUnturned();
 }

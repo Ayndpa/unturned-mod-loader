@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using UnturnedModLoader.Models;
 using UnturnedModLoader.Services;
+using UnturnedModLoader.Services.Api;
 using UnturnedModLoader.ViewModels;
 using UnturnedModLoader.Views;
 
@@ -65,7 +66,8 @@ public partial class App : Application
     {
         var mainWindow = new MainWindow();
         var folderPicker = new FolderPickerService(mainWindow);
-        mainWindow.DataContext = new MainViewModel(settingsService, settings, folderPicker);
+        var modsApi = ModsApiClientFactory.Create(settings);
+        mainWindow.DataContext = new MainViewModel(settingsService, settings, folderPicker, modsApi);
         return mainWindow;
     }
 }

@@ -65,6 +65,31 @@
         <Setter Property="Background" Value="{StaticResource BgSurfaceAltBrush}" />
     </Style>
 
+    <Style Selector="Button.icon">
+        <Setter Property="Padding" Value="8" />
+        <Setter Property="MinWidth" Value="36" />
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Button.iconText">
+        <Setter Property="Padding" Value="12,8" />
+    </Style>
+
+    <Style Selector="LucideIcon.loader">
+        <Style.Animations>
+            <Animation Duration="0:0:0.9" IterationCount="INFINITE">
+                <KeyFrame Cue="0%">
+                    <Setter Property="RotateTransform.Angle" Value="0" />
+                </KeyFrame>
+                <KeyFrame Cue="100%">
+                    <Setter Property="RotateTransform.Angle" Value="360" />
+                </KeyFrame>
+            </Animation>
+        </Style.Animations>
+    </Style>
+
     <!-- TextBox -->
     <Style Selector="TextBox">
         <Setter Property="Background" Value="{StaticResource BgPaperBrush}" />
@@ -78,6 +103,10 @@
 
     <Style Selector="TextBox:focus">
         <Setter Property="BorderBrush" Value="{StaticResource InkBrush}" />
+    </Style>
+
+    <Style Selector="TextBox.search">
+        <Setter Property="Padding" Value="8,8,10,8" />
     </Style>
 
     <!-- CheckBox -->
