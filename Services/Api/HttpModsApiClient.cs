@@ -137,6 +137,49 @@ public sealed class HttpModsApiClient : IModsApiClient, IDisposable
         }
     }
 
+    public async Task<ModDetailResult> GetModAsync(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = await _http.GetAsync($"api/mods/{id}", cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                return new ModDetailResult(
+                    false,
+                    null,
+                    ParseErrorMessage(body) ?? L.Get(I18n.ApiMessages.RequestFailed, (int)response.StatusCode));
+            }
+
+            var payload = await response.Content
+                .ReadFromJsonAsync<ModDetailResponse>(JsonOptions, cancellationToken);
+
+            if (payload?.Mod is null)
+                return new ModDetailResult(false, null, L.Get(I18n.ApiMessages.InvalidResponse));
+
+            return new ModDetailResult(true, payload.Mod, null);
+        }
+        catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (TaskCanceledException)
+        {
+            return new ModDetailResult(false, null, L.Get(I18n.ApiMessages.Timeout));
+        }
+        catch (HttpRequestException ex)
+        {
+            return new ModDetailResult(false, null, L.Get(I18n.ApiMessages.CannotConnect, ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return new ModDetailResult(false, null, L.Get(I18n.ApiMessages.LoadModDetailFailed, ex.Message));
+        }
+    }
+
     private static string BuildRequestUri(ModsQuery query, int page)
     {
         var parameters = new List<string> { $"page={page}" };

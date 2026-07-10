@@ -120,6 +120,9 @@ public static class Main
 {
     public const string Subtitle = "Localization.Main.Subtitle";
     public const string LaunchGame = "Localization.Main.LaunchGame";
+    public const string Navigation = "Localization.Main.Navigation";
+    public const string BrowseMods = "Localization.Main.BrowseMods";
+    public const string InstalledMods = "Localization.Main.InstalledMods";
     public const string Categories = "Localization.Main.Categories";
     public const string QuickActions = "Localization.Main.QuickActions";
     public const string OpenModsFolder = "Localization.Main.OpenModsFolder";
@@ -144,6 +147,24 @@ public static class Main
     public const string GamePathUpdated = "Localization.Main.GamePathUpdated";
     public const string GamePathNotConfigured = "Localization.Main.GamePathNotConfigured";
     public const string GamePathInvalid = "Localization.Main.GamePathInvalid";
+    public const string LoadingInstalled = "Localization.Main.LoadingInstalled";
+    public const string NoInstalledTitle = "Localization.Main.NoInstalledTitle";
+    public const string NoInstalledHint = "Localization.Main.NoInstalledHint";
+    public const string InstalledCount = "Localization.Main.InstalledCount";
+    public const string InstalledRemoved = "Localization.Main.InstalledRemoved";
+}
+
+public static class ModDetail
+{
+    public const string Title = "Localization.ModDetail.Title";
+    public const string Loading = "Localization.ModDetail.Loading";
+    public const string LoadFailed = "Localization.ModDetail.LoadFailed";
+    public const string Downloads = "Localization.ModDetail.Downloads";
+    public const string Likes = "Localization.ModDetail.Likes";
+    public const string Comments = "Localization.ModDetail.Comments";
+    public const string FileSize = "Localization.ModDetail.FileSize";
+    public const string Tags = "Localization.ModDetail.Tags";
+    public const string NoTags = "Localization.ModDetail.NoTags";
 }
 
 public static class Settings
@@ -205,5 +226,6 @@ public static class ApiMessages
     public const string RequestError = "Localization.Api.RequestError";
     public const string LoadCategoriesFailed = "Localization.Api.LoadCategoriesFailed";
     public const string LoadModsFailed = "Localization.Api.LoadModsFailed";
+    public const string LoadModDetailFailed = "Localization.Api.LoadModDetailFailed";
     public const string CloudNotConfigured = "Localization.Api.CloudNotConfigured";
 }

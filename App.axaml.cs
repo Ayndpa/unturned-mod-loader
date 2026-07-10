@@ -125,12 +125,17 @@ public partial class App : Application
         var folderPicker = new FolderPickerService(mainWindow);
         var session = new AuthSessionService(api, settingsService, settings);
 
+        var imageService = new RemoteImageService(api.SharedHttpClient);
+        var installedModsService = new InstalledModsService();
+
         mainWindow.DataContext = new MainViewModel(
             settingsService,
             settings,
             folderPicker,
             api.Mods,
             session,
+            imageService,
+            installedModsService,
             mainWindow,
             onLogout: () =>
             {

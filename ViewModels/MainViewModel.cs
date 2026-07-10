@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Linq;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -12,6 +11,12 @@ using UnturnedModLoader.Views;
 
 namespace UnturnedModLoader.ViewModels;
 
+public enum MainPage
+{
+    Browse,
+    Installed,
+}
+
 public partial class MainViewModel : ViewModelBase
 {
     private readonly SettingsService _settingsService;
@@ -19,11 +24,16 @@ public partial class MainViewModel : ViewModelBase
     private readonly FolderPickerService _folderPicker;
     private readonly IModsApiClient _modsApi;
     private readonly AuthSessionService _session;
+    private readonly RemoteImageService _imageService;
+    private readonly InstalledModsService _installedModsService;
     private readonly Window _owner;
     private readonly Action? _onLogout;
     private readonly Dictionary<int, bool> _enabledStates = [];
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _loadCts;
+
+    [ObservableProperty]
+    private MainPage _currentPage = MainPage.Browse;
 
     [ObservableProperty]
     private string _searchText = "";
@@ -59,10 +69,17 @@ public partial class MainViewModel : ViewModelBase
     private bool _isSearchEmpty;
 
     public ObservableCollection<ModItemViewModel> Mods { get; } = [];
+    public ObservableCollection<InstalledModItemViewModel> InstalledMods { get; } = [];
     public ObservableCollection<CategoryViewModel> Categories { get; } = [];
 
-    public int EnabledCount => Mods.Count(m => m.IsEnabled);
-    public int TotalCount => Mods.Count;
+    public bool IsBrowsePage => CurrentPage == MainPage.Browse;
+    public bool IsInstalledPage => CurrentPage == MainPage.Installed;
+
+    public int EnabledCount => IsInstalledPage
+        ? InstalledMods.Count(m => m.IsEnabled)
+        : Mods.Count(m => m.IsEnabled);
+
+    public int TotalCount => IsInstalledPage ? InstalledMods.Count : Mods.Count;
     public string Username => _settings.Username ?? "";
 
     public bool ShowPackageEmptyIcon => IsEmpty && !IsErrorState && !IsSearchEmpty;
@@ -75,6 +92,8 @@ public partial class MainViewModel : ViewModelBase
         FolderPickerService folderPicker,
         IModsApiClient modsApi,
         AuthSessionService session,
+        RemoteImageService imageService,
+        InstalledModsService installedModsService,
         Window owner,
         Action? onLogout = null)
     {
@@ -83,6 +102,8 @@ public partial class MainViewModel : ViewModelBase
         _folderPicker = folderPicker;
         _modsApi = modsApi;
         _session = session;
+        _imageService = imageService;
+        _installedModsService = installedModsService;
         _owner = owner;
         _onLogout = onLogout;
         _gamePath = settings.GamePath;
@@ -93,15 +114,44 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private async Task SelectPageAsync(string? pageName)
+    {
+        var page = pageName?.ToLowerInvariant() switch
+        {
+            "installed" => MainPage.Installed,
+            _ => MainPage.Browse,
+        };
+
+        if (page == CurrentPage)
+            return;
+
+        CurrentPage = page;
+        NotifyPageStates();
+
+        if (page == MainPage.Browse)
+            await LoadModsAsync();
+        else
+            await LoadInstalledModsAsync();
+    }
+
+    [RelayCommand]
     private async Task RefreshModsAsync()
     {
-        await LoadCategoriesAsync();
-        await LoadModsAsync();
+        if (IsInstalledPage)
+            await LoadInstalledModsAsync();
+        else
+        {
+            await LoadCategoriesAsync();
+            await LoadModsAsync();
+        }
     }
 
     [RelayCommand]
     private async Task SelectCategoryAsync(string? categoryKey)
     {
+        if (!IsBrowsePage)
+            return;
+
         var normalizedKey = string.IsNullOrWhiteSpace(categoryKey) ? null : categoryKey;
         if (normalizedKey == SelectedCategoryKey)
             return;
@@ -109,6 +159,56 @@ public partial class MainViewModel : ViewModelBase
         SelectedCategoryKey = normalizedKey;
         UpdateCategorySelection();
         await LoadModsAsync();
+    }
+
+    [RelayCommand]
+    private async Task OpenModDetailsAsync(ModItemViewModel? mod)
+    {
+        if (mod is null)
+            return;
+
+        var viewModel = new ModDetailViewModel(_imageService, _modsApi.BaseUrl);
+        var dialog = new ModDetailWindow { DataContext = viewModel };
+
+        viewModel.CloseRequested += () => dialog.Close();
+        _ = viewModel.LoadAsync(mod.Id, _modsApi);
+        await dialog.ShowDialog(_owner);
+    }
+
+    [RelayCommand]
+    private void RemoveInstalledMod(InstalledModItemViewModel? mod)
+    {
+        if (mod is null)
+            return;
+
+        if (!_installedModsService.Remove(mod.FileName, GamePath))
+            return;
+
+        InstalledMods.Remove(mod);
+        OnPropertyChanged(nameof(EnabledCount));
+        OnPropertyChanged(nameof(TotalCount));
+        StatusText = L.Get(Main.InstalledRemoved, mod.Title);
+
+        if (InstalledMods.Count == 0)
+        {
+            SetEmptyState(
+                isError: false,
+                isSearch: false,
+                title: L.Get(Main.NoInstalledTitle),
+                subtitle: L.Get(Main.NoInstalledHint));
+        }
+    }
+
+    [RelayCommand]
+    private void OpenModsFolder()
+    {
+        if (!GamePathValidator.IsValid(GamePath))
+        {
+            StatusText = L.Get(Main.GamePathInvalid);
+            return;
+        }
+
+        _installedModsService.OpenModsFolder(GamePath);
     }
 
     [RelayCommand]
@@ -136,8 +236,14 @@ public partial class MainViewModel : ViewModelBase
         GamePath = _settings.GamePath;
         OnPropertyChanged(nameof(Username));
         UpdateStatus();
-        await LoadCategoriesAsync();
-        await LoadModsAsync();
+
+        if (IsInstalledPage)
+            await LoadInstalledModsAsync();
+        else
+        {
+            await LoadCategoriesAsync();
+            await LoadModsAsync();
+        }
 
         if (logoutTriggered)
             _onLogout?.Invoke();
@@ -166,6 +272,8 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
+    partial void OnCurrentPageChanged(MainPage value) => NotifyPageStates();
+
     partial void OnGamePathChanged(string value)
     {
         if (GamePathValidator.IsValid(value))
@@ -177,7 +285,13 @@ public partial class MainViewModel : ViewModelBase
         UpdateStatus();
     }
 
-    partial void OnSearchTextChanged(string value) => DebounceSearch();
+    partial void OnSearchTextChanged(string value)
+    {
+        if (IsBrowsePage)
+            DebounceSearch();
+        else
+            FilterInstalledMods();
+    }
 
     private void DebounceSearch()
     {
@@ -260,6 +374,9 @@ public partial class MainViewModel : ViewModelBase
 
     private async Task LoadModsAsync()
     {
+        if (!IsBrowsePage)
+            return;
+
         _loadCts?.Cancel();
         _loadCts = new CancellationTokenSource();
         var token = _loadCts.Token;
@@ -297,7 +414,7 @@ public partial class MainViewModel : ViewModelBase
                 return;
             }
 
-            ApplyMods(result.Mods);
+            await ApplyModsAsync(result.Mods, token);
             UpdateCategoryCounts(result.Mods, result.Total);
 
             if (Mods.Count == 0)
@@ -331,7 +448,112 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    private void ApplyMods(IReadOnlyList<RemoteMod> remoteMods)
+    private async Task LoadInstalledModsAsync()
+    {
+        if (!IsInstalledPage)
+            return;
+
+        IsLoading = true;
+        IsEmpty = false;
+        ListMessage = L.Get(Main.LoadingInstalled);
+
+        try
+        {
+            if (!GamePathValidator.IsValid(GamePath))
+            {
+                InstalledMods.Clear();
+                SetEmptyState(
+                    isError: false,
+                    isSearch: false,
+                    title: L.Get(Main.GamePathNotConfigured),
+                    subtitle: L.Get(Main.NoInstalledHint));
+                StatusText = L.Get(Main.GamePathNotConfigured);
+                OnPropertyChanged(nameof(EnabledCount));
+                OnPropertyChanged(nameof(TotalCount));
+                return;
+            }
+
+            _installedModsService.SyncWithFolder(GamePath);
+            var installed = _installedModsService.GetAll();
+            InstalledMods.Clear();
+
+            foreach (var mod in installed.OrderByDescending(m => m.InstalledAt))
+            {
+                if (!MatchesInstalledSearch(mod))
+                    continue;
+
+                var vm = new InstalledModItemViewModel
+                {
+                    RemoteId = mod.RemoteId,
+                    Title = mod.Title,
+                    Author = mod.Author ?? "—",
+                    Version = string.IsNullOrWhiteSpace(mod.Version) ? "—" : mod.Version,
+                    Category = string.IsNullOrWhiteSpace(mod.Category)
+                        ? L.Get(Category.Other)
+                        : ModCategoryMapper.ToLabel(mod.Category),
+                    Description = string.IsNullOrWhiteSpace(mod.Description)
+                        ? L.Get(Common.NoDescription)
+                        : mod.Description,
+                    FileName = mod.FileName,
+                    IsEnabled = mod.IsEnabled,
+                };
+
+                vm.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(InstalledModItemViewModel.IsEnabled))
+                    {
+                        _installedModsService.SetEnabled(vm.FileName, vm.IsEnabled);
+                        OnPropertyChanged(nameof(EnabledCount));
+                    }
+                };
+
+                InstalledMods.Add(vm);
+                _ = LoadInstalledCoverAsync(vm, mod.CoverUrl);
+            }
+
+            if (InstalledMods.Count == 0)
+            {
+                var hasSearch = !string.IsNullOrWhiteSpace(SearchText);
+                SetEmptyState(
+                    isError: false,
+                    isSearch: hasSearch,
+                    title: hasSearch ? L.Get(Main.NoMatchTitle) : L.Get(Main.NoInstalledTitle),
+                    subtitle: hasSearch ? L.Get(Main.NoMatchHint) : L.Get(Main.NoInstalledHint));
+                StatusText = L.Get(Main.InstalledCount, 0);
+            }
+            else
+            {
+                IsEmpty = false;
+                IsErrorState = false;
+                IsSearchEmpty = false;
+                ListMessage = "";
+                StatusText = L.Get(Main.InstalledCount, InstalledMods.Count);
+                NotifyEmptyIconStates();
+            }
+
+            OnPropertyChanged(nameof(EnabledCount));
+            OnPropertyChanged(nameof(TotalCount));
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void FilterInstalledMods() => _ = LoadInstalledModsAsync();
+
+    private bool MatchesInstalledSearch(InstalledMod mod)
+    {
+        if (string.IsNullOrWhiteSpace(SearchText))
+            return true;
+
+        var query = SearchText.Trim();
+        return mod.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
+               || (mod.Author?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false)
+               || mod.FileName.Contains(query, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task ApplyModsAsync(IReadOnlyList<RemoteMod> remoteMods, CancellationToken token)
     {
         Mods.Clear();
 
@@ -347,6 +569,8 @@ public partial class MainViewModel : ViewModelBase
                 Description = string.IsNullOrWhiteSpace(remote.Description)
                     ? L.Get(Common.NoDescription)
                     : remote.Description,
+                CoverUrl = remote.CoverUrl,
+                FileUrl = remote.FileUrl,
                 Downloads = remote.Downloads,
                 LikeCount = remote.LikeCount,
                 IsEnabled = _enabledStates.TryGetValue(remote.Id, out var enabled) && enabled,
@@ -362,10 +586,33 @@ public partial class MainViewModel : ViewModelBase
             };
 
             Mods.Add(vm);
+            _ = LoadBrowseCoverAsync(vm, remote.CoverUrl, token);
         }
 
         OnPropertyChanged(nameof(EnabledCount));
         OnPropertyChanged(nameof(TotalCount));
+    }
+
+    private async Task LoadBrowseCoverAsync(
+        ModItemViewModel vm,
+        string? coverUrl,
+        CancellationToken token)
+    {
+        var resolved = RemoteImageService.ResolveUrl(_modsApi.BaseUrl, coverUrl);
+        var bitmap = await _imageService.LoadAsync(resolved, token);
+        if (token.IsCancellationRequested)
+            return;
+
+        vm.CoverImage = bitmap;
+        vm.HasCoverImage = bitmap is not null;
+    }
+
+    private async Task LoadInstalledCoverAsync(InstalledModItemViewModel vm, string? coverUrl)
+    {
+        var resolved = RemoteImageService.ResolveUrl(_modsApi.BaseUrl, coverUrl);
+        var bitmap = await _imageService.LoadAsync(resolved);
+        vm.CoverImage = bitmap;
+        vm.HasCoverImage = bitmap is not null;
     }
 
     private void UpdateCategoryCounts(IReadOnlyList<RemoteMod> mods, int apiTotal)
@@ -412,6 +659,14 @@ public partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(ShowErrorEmptyIcon));
     }
 
+    private void NotifyPageStates()
+    {
+        OnPropertyChanged(nameof(IsBrowsePage));
+        OnPropertyChanged(nameof(IsInstalledPage));
+        OnPropertyChanged(nameof(EnabledCount));
+        OnPropertyChanged(nameof(TotalCount));
+    }
+
     private void UpdateStatus()
     {
         if (IsLoading)
@@ -419,6 +674,14 @@ public partial class MainViewModel : ViewModelBase
 
         if (!string.IsNullOrWhiteSpace(ListMessage) && IsEmpty)
             return;
+
+        if (IsInstalledPage)
+        {
+            StatusText = GamePathValidator.IsValid(GamePath)
+                ? L.Get(Main.InstalledCount, InstalledMods.Count)
+                : L.Get(Main.GamePathNotConfigured);
+            return;
+        }
 
         StatusText = GamePathValidator.IsValid(GamePath)
             ? L.Get(Main.Connected, _modsApi.BaseUrl)

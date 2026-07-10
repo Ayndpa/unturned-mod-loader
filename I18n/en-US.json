@@ -104,6 +104,9 @@
     "Main": {
       "Subtitle": "Mod loading & management",
       "LaunchGame": "Launch Game",
+      "Navigation": "Navigation",
+      "BrowseMods": "Browse Mods",
+      "InstalledMods": "Installed Mods",
       "Categories": "Categories",
       "QuickActions": "Quick Actions",
       "OpenModsFolder": "Open Mods Folder",
@@ -113,6 +116,11 @@
       "Reload": "Reload",
       "Details": "Details",
       "Remove": "Remove",
+      "LoadingInstalled": "Scanning installed mods…",
+      "NoInstalledTitle": "No installed mods yet",
+      "NoInstalledHint": "Place mod files in the Modules folder under your game folder, or install from Browse",
+      "InstalledCount": "{0} mods installed",
+      "InstalledRemoved": "Removed mod: {0}",
       "Ready": "Ready",
       "LoadingMods": "Loading mods from API…",
       "CannotConnectTitle": "Cannot connect to server",
@@ -181,7 +189,19 @@
       "RequestError": "Request failed: {0}",
       "LoadCategoriesFailed": "Failed to load categories: {0}",
       "LoadModsFailed": "Failed to load mods: {0}",
+      "LoadModDetailFailed": "Failed to load mod details: {0}",
       "CloudNotConfigured": "Cloud API URL is not configured."
+    },
+    "ModDetail": {
+      "Title": "Mod Details",
+      "Loading": "Loading details…",
+      "LoadFailed": "Could not load mod details",
+      "Downloads": "Downloads",
+      "Likes": "Likes",
+      "Comments": "Comments",
+      "FileSize": "File Size",
+      "Tags": "Tags",
+      "NoTags": "No tags"
     }
   }
 }

@@ -104,6 +104,9 @@
     "Main": {
       "Subtitle": "模组加载与管理",
       "LaunchGame": "启动游戏",
+      "Navigation": "导航",
+      "BrowseMods": "浏览模组",
+      "InstalledMods": "已安装模组",
       "Categories": "分类",
       "QuickActions": "快捷操作",
       "OpenModsFolder": "打开模组目录",
@@ -113,6 +116,11 @@
       "Reload": "重新加载",
       "Details": "详情",
       "Remove": "移除",
+      "LoadingInstalled": "正在扫描已安装模组…",
+      "NoInstalledTitle": "还没有已安装模组",
+      "NoInstalledHint": "将模组文件放入游戏目录下的 Modules 文件夹，或从浏览页面安装",
+      "InstalledCount": "已安装 {0} 个模组",
+      "InstalledRemoved": "已移除模组：{0}",
       "Ready": "就绪",
       "LoadingMods": "正在从 API 加载模组…",
       "CannotConnectTitle": "无法连接服务端",
@@ -181,7 +189,19 @@
       "RequestError": "请求失败：{0}",
       "LoadCategoriesFailed": "加载分类失败：{0}",
       "LoadModsFailed": "加载模组失败：{0}",
+      "LoadModDetailFailed": "加载模组详情失败：{0}",
       "CloudNotConfigured": "云端 API 地址未配置。"
+    },
+    "ModDetail": {
+      "Title": "模组详情",
+      "Loading": "正在加载详情…",
+      "LoadFailed": "无法加载模组详情",
+      "Downloads": "下载",
+      "Likes": "点赞",
+      "Comments": "评论",
+      "FileSize": "文件大小",
+      "Tags": "标签",
+      "NoTags": "无标签"
     }
   }
 }

@@ -12,6 +12,7 @@ public sealed class ApiClientBundle : IDisposable
 
     public IAuthApiClient Auth { get; }
     public IModsApiClient Mods { get; }
+    public HttpClient SharedHttpClient => _http;
 
     public ApiClientBundle(AppSettings settings)
     {
