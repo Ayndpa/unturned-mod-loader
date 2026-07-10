@@ -20,6 +20,21 @@ public sealed class RemoteImageService
         return url.StartsWith('/') ? root + url : root + "/" + url;
     }
 
+    public static Bitmap? LoadLocal(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return null;
+
+        try
+        {
+            return new Bitmap(path);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<Bitmap?> LoadAsync(string? url, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(url))

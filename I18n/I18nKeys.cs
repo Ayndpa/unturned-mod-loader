@@ -152,6 +152,23 @@ public static class Main
     public const string NoInstalledHint = "Localization.Main.NoInstalledHint";
     public const string InstalledCount = "Localization.Main.InstalledCount";
     public const string InstalledRemoved = "Localization.Main.InstalledRemoved";
+    public const string ParsingInstalled = "Localization.Main.ParsingInstalled";
+}
+
+public static class InstalledModDetail
+{
+    public const string Title = "Localization.InstalledModDetail.Title";
+    public const string TypeModule = "Localization.InstalledModDetail.TypeModule";
+    public const string TypeDll = "Localization.InstalledModDetail.TypeDll";
+    public const string StatusEnabled = "Localization.InstalledModDetail.StatusEnabled";
+    public const string StatusDisabled = "Localization.InstalledModDetail.StatusDisabled";
+    public const string Version = "Localization.InstalledModDetail.Version";
+    public const string Path = "Localization.InstalledModDetail.Path";
+    public const string Directory = "Localization.InstalledModDetail.Directory";
+    public const string Dependencies = "Localization.InstalledModDetail.Dependencies";
+    public const string Assemblies = "Localization.InstalledModDetail.Assemblies";
+    public const string NoDependencies = "Localization.InstalledModDetail.NoDependencies";
+    public const string NoAssemblies = "Localization.InstalledModDetail.NoAssemblies";
 }
 
 public static class ModDetail

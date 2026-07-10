@@ -118,7 +118,8 @@
       "Remove": "移除",
       "LoadingInstalled": "正在扫描已安装模组…",
       "NoInstalledTitle": "还没有已安装模组",
-      "NoInstalledHint": "将模组文件放入游戏目录下的 Modules 文件夹，或从浏览页面安装",
+      "NoInstalledHint": "将 .module 模组或 .dll 程序集放入游戏目录下的 Modules 文件夹",
+      "ParsingInstalled": "正在解析本地模组…",
       "InstalledCount": "已安装 {0} 个模组",
       "InstalledRemoved": "已移除模组：{0}",
       "Ready": "就绪",
@@ -191,6 +192,20 @@
       "LoadModsFailed": "加载模组失败：{0}",
       "LoadModDetailFailed": "加载模组详情失败：{0}",
       "CloudNotConfigured": "云端 API 地址未配置。"
+    },
+    "InstalledModDetail": {
+      "Title": "本地模组详情",
+      "TypeModule": "模块",
+      "TypeDll": "程序集",
+      "StatusEnabled": "已启用",
+      "StatusDisabled": "已禁用",
+      "Version": "版本",
+      "Path": "相对路径",
+      "Directory": "所在目录",
+      "Dependencies": "依赖项",
+      "Assemblies": "程序集列表",
+      "NoDependencies": "无依赖项",
+      "NoAssemblies": "无程序集"
     },
     "ModDetail": {
       "Title": "模组详情",

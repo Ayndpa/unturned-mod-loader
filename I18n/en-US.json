@@ -118,7 +118,8 @@
       "Remove": "Remove",
       "LoadingInstalled": "Scanning installed mods…",
       "NoInstalledTitle": "No installed mods yet",
-      "NoInstalledHint": "Place mod files in the Modules folder under your game folder, or install from Browse",
+      "NoInstalledHint": "Place .module mods or .dll assemblies in the Modules folder under your game folder",
+      "ParsingInstalled": "Parsing local mods…",
       "InstalledCount": "{0} mods installed",
       "InstalledRemoved": "Removed mod: {0}",
       "Ready": "Ready",
@@ -191,6 +192,20 @@
       "LoadModsFailed": "Failed to load mods: {0}",
       "LoadModDetailFailed": "Failed to load mod details: {0}",
       "CloudNotConfigured": "Cloud API URL is not configured."
+    },
+    "InstalledModDetail": {
+      "Title": "Local Mod Details",
+      "TypeModule": "Module",
+      "TypeDll": "Assembly",
+      "StatusEnabled": "Enabled",
+      "StatusDisabled": "Disabled",
+      "Version": "Version",
+      "Path": "Relative Path",
+      "Directory": "Directory",
+      "Dependencies": "Dependencies",
+      "Assemblies": "Assemblies",
+      "NoDependencies": "No dependencies",
+      "NoAssemblies": "No assemblies"
     },
     "ModDetail": {
       "Title": "Mod Details",

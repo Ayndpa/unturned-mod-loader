@@ -176,12 +176,26 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private async Task OpenInstalledModDetailsAsync(InstalledModItemViewModel? mod)
+    {
+        if (mod is null)
+            return;
+
+        var viewModel = new InstalledModDetailViewModel(_imageService, _modsApi.BaseUrl);
+        var dialog = new InstalledModDetailWindow { DataContext = viewModel };
+
+        viewModel.CloseRequested += () => dialog.Close();
+        viewModel.Load(mod);
+        await dialog.ShowDialog(_owner);
+    }
+
+    [RelayCommand]
     private void RemoveInstalledMod(InstalledModItemViewModel? mod)
     {
         if (mod is null)
             return;
 
-        if (!_installedModsService.Remove(mod.FileName, GamePath))
+        if (!_installedModsService.Remove(mod.RelativePath, GamePath))
             return;
 
         InstalledMods.Remove(mod);
@@ -455,7 +469,7 @@ public partial class MainViewModel : ViewModelBase
 
         IsLoading = true;
         IsEmpty = false;
-        ListMessage = L.Get(Main.LoadingInstalled);
+        ListMessage = L.Get(Main.ParsingInstalled);
 
         try
         {
@@ -473,8 +487,7 @@ public partial class MainViewModel : ViewModelBase
                 return;
             }
 
-            _installedModsService.SyncWithFolder(GamePath);
-            var installed = _installedModsService.GetAll();
+            var installed = _installedModsService.ScanAndMerge(GamePath);
             InstalledMods.Clear();
 
             foreach (var mod in installed.OrderByDescending(m => m.InstalledAt))
@@ -485,16 +498,23 @@ public partial class MainViewModel : ViewModelBase
                 var vm = new InstalledModItemViewModel
                 {
                     RemoteId = mod.RemoteId,
+                    Kind = mod.Kind,
                     Title = mod.Title,
                     Author = mod.Author ?? "—",
                     Version = string.IsNullOrWhiteSpace(mod.Version) ? "—" : mod.Version,
-                    Category = string.IsNullOrWhiteSpace(mod.Category)
-                        ? L.Get(Category.Other)
-                        : ModCategoryMapper.ToLabel(mod.Category),
+                    Category = mod.Kind == LocalModKind.Module
+                        ? L.Get(InstalledModDetail.TypeModule)
+                        : L.Get(InstalledModDetail.TypeDll),
                     Description = string.IsNullOrWhiteSpace(mod.Description)
                         ? L.Get(Common.NoDescription)
                         : mod.Description,
-                    FileName = mod.FileName,
+                    RelativePath = mod.RelativePath,
+                    ModuleFilePath = mod.ModuleFilePath,
+                    DirectoryPath = mod.DirectoryPath,
+                    LocalIconPath = mod.LocalIconPath,
+                    CoverUrl = mod.CoverUrl,
+                    Dependencies = mod.Dependencies,
+                    Assemblies = mod.Assemblies,
                     IsEnabled = mod.IsEnabled,
                 };
 
@@ -502,13 +522,13 @@ public partial class MainViewModel : ViewModelBase
                 {
                     if (e.PropertyName == nameof(InstalledModItemViewModel.IsEnabled))
                     {
-                        _installedModsService.SetEnabled(vm.FileName, vm.IsEnabled);
+                        _installedModsService.SetEnabled(vm.RelativePath, GamePath, vm.IsEnabled);
                         OnPropertyChanged(nameof(EnabledCount));
                     }
                 };
 
                 InstalledMods.Add(vm);
-                _ = LoadInstalledCoverAsync(vm, mod.CoverUrl);
+                _ = LoadInstalledCoverAsync(vm);
             }
 
             if (InstalledMods.Count == 0)
@@ -550,7 +570,8 @@ public partial class MainViewModel : ViewModelBase
         var query = SearchText.Trim();
         return mod.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
                || (mod.Author?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false)
-               || mod.FileName.Contains(query, StringComparison.OrdinalIgnoreCase);
+               || mod.RelativePath.Contains(query, StringComparison.OrdinalIgnoreCase)
+               || mod.Dependencies.Any(dep => dep.Contains(query, StringComparison.OrdinalIgnoreCase));
     }
 
     private async Task ApplyModsAsync(IReadOnlyList<RemoteMod> remoteMods, CancellationToken token)
@@ -607,9 +628,23 @@ public partial class MainViewModel : ViewModelBase
         vm.HasCoverImage = bitmap is not null;
     }
 
-    private async Task LoadInstalledCoverAsync(InstalledModItemViewModel vm, string? coverUrl)
+    private async Task LoadInstalledCoverAsync(InstalledModItemViewModel vm)
     {
-        var resolved = RemoteImageService.ResolveUrl(_modsApi.BaseUrl, coverUrl);
+        var localBitmap = RemoteImageService.LoadLocal(vm.LocalIconPath);
+        if (localBitmap is not null)
+        {
+            vm.CoverImage = localBitmap;
+            vm.HasCoverImage = true;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(vm.CoverUrl))
+        {
+            vm.HasCoverImage = false;
+            return;
+        }
+
+        var resolved = RemoteImageService.ResolveUrl(_modsApi.BaseUrl, vm.CoverUrl);
         var bitmap = await _imageService.LoadAsync(resolved);
         vm.CoverImage = bitmap;
         vm.HasCoverImage = bitmap is not null;
