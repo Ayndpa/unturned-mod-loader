@@ -16,6 +16,7 @@ public partial class ModDetailViewModel : ViewModelBase
     private readonly IModsApiClient _modsApi;
     private readonly AppSettings _settings;
     private readonly ModDownloadService _downloadService;
+    private readonly Func<string?>? _getInstallModulesFolder;
     private readonly Window _owner;
     private readonly string _apiBaseUrl;
     private int _downloadCount;
@@ -69,7 +70,8 @@ public partial class ModDetailViewModel : ViewModelBase
         IModsApiClient modsApi,
         AppSettings settings,
         Window owner,
-        ModDownloadService? downloadService = null)
+        ModDownloadService? downloadService = null,
+        Func<string?>? getInstallModulesFolder = null)
     {
         _imageService = imageService;
         _apiBaseUrl = apiBaseUrl;
@@ -77,6 +79,7 @@ public partial class ModDetailViewModel : ViewModelBase
         _settings = settings;
         _owner = owner;
         _downloadService = downloadService ?? new ModDownloadService();
+        _getInstallModulesFolder = getInstallModulesFolder;
     }
 
     public async Task LoadAsync(int modId, CancellationToken cancellationToken = default)
@@ -123,10 +126,18 @@ public partial class ModDetailViewModel : ViewModelBase
 
         try
         {
+            var modulesFolder = _getInstallModulesFolder?.Invoke();
+            if (_getInstallModulesFolder is not null && string.IsNullOrWhiteSpace(modulesFolder))
+            {
+                DownloadStatus = L.Get(ModDetail.VanillaBlocked);
+                OnPropertyChanged(nameof(HasDownloadStatus));
+                return;
+            }
+
             var result = await _downloadService.DownloadAndInstallAsync(
                 _modsApi,
                 Id,
-                _settings.GamePath,
+                modulesFolder,
                 _owner);
 
             if (result.Cancelled)

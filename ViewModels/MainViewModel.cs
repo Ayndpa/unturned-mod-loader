@@ -27,10 +27,14 @@ public partial class MainViewModel : ViewModelBase
     private readonly AuthSessionService _session;
     private readonly RemoteImageService _imageService;
     private readonly InstalledModsService _installedModsService;
+    private readonly ProfileService _profileService;
+    private readonly GameOverlayService _overlayService;
+    private readonly GameSessionCaptureService _sessionCapture;
     private readonly Window _owner;
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _loadCts;
     private bool _isHandlingToggle;
+    private bool _wasGameRunning;
     private DispatcherTimer? _gameProcessTimer;
 
     [ObservableProperty]
@@ -72,12 +76,22 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isGameRunning;
 
+    [ObservableProperty]
+    private string _activeProfileName = "";
+
+    [ObservableProperty]
+    private string _activeProfileId = GameProfile.VanillaId;
+
+    [ObservableProperty]
+    private bool _isVanillaProfile = true;
+
     public string? GameRunningToggleTooltip =>
         IsGameRunning ? L.Get(Main.GameRunningToggleBlocked) : null;
 
     public ObservableCollection<ModItemViewModel> Mods { get; } = [];
     public ObservableCollection<InstalledModItemViewModel> InstalledMods { get; } = [];
     public ObservableCollection<CategoryViewModel> Categories { get; } = [];
+    public ObservableCollection<ProfileItemViewModel> Profiles { get; } = [];
 
     public bool IsBrowsePage => CurrentPage == MainPage.Browse;
     public bool IsInstalledPage => CurrentPage == MainPage.Installed;
@@ -99,6 +113,9 @@ public partial class MainViewModel : ViewModelBase
         AuthSessionService session,
         RemoteImageService imageService,
         InstalledModsService installedModsService,
+        ProfileService profileService,
+        GameOverlayService overlayService,
+        GameSessionCaptureService sessionCapture,
         Window owner)
     {
         _settingsService = settingsService;
@@ -108,11 +125,16 @@ public partial class MainViewModel : ViewModelBase
         _session = session;
         _imageService = imageService;
         _installedModsService = installedModsService;
+        _profileService = profileService;
+        _overlayService = overlayService;
+        _sessionCapture = sessionCapture;
         _owner = owner;
         _gamePath = settings.GamePath;
         _statusText = L.Get(Main.Ready);
 
+        RefreshProfileList();
         UpdateStatus();
+        StartGameProcessMonitoring();
         _ = InitializeAsync();
     }
 
@@ -131,16 +153,14 @@ public partial class MainViewModel : ViewModelBase
         CurrentPage = page;
         NotifyPageStates();
 
+        // Always keep process monitoring so runtime capture can finish after the game exits,
+        // even if the user is on the Browse page.
+        StartGameProcessMonitoring();
+
         if (page == MainPage.Browse)
-        {
-            StopGameProcessMonitoring();
             await LoadModsAsync();
-        }
         else
-        {
-            StartGameProcessMonitoring();
             await LoadInstalledModsAsync();
-        }
     }
 
     [RelayCommand]
@@ -184,7 +204,8 @@ public partial class MainViewModel : ViewModelBase
             _modsApi.BaseUrl,
             _modsApi,
             _settings,
-            _owner);
+            _owner,
+            getInstallModulesFolder: () => IsVanillaProfile ? null : _installedModsService.ModulesRoot);
         var dialog = new ModDetailWindow { DataContext = viewModel };
         var downloadCompleted = false;
 
@@ -193,9 +214,9 @@ public partial class MainViewModel : ViewModelBase
         _ = viewModel.LoadAsync(mod.Id);
         await dialog.ShowDialog(_owner);
 
-        if (downloadCompleted && GamePathValidator.IsValid(GamePath))
+        if (downloadCompleted && !IsVanillaProfile)
         {
-            _installedModsService.ScanAndMerge(GamePath);
+            _installedModsService.ScanAndMerge();
             if (IsInstalledPage)
                 await LoadInstalledModsAsync();
         }
@@ -240,14 +261,17 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task OpenSettingsAsync()
+    private async Task OpenSettingsAsync(string? section = null)
     {
         var viewModel = new SettingsViewModel(
             _settingsService,
             _settings,
             _folderPicker,
             _session,
-            _owner);
+            _profileService,
+            _overlayService,
+            _owner,
+            initialSection: section);
 
         var dialog = new SettingsWindow { DataContext = viewModel };
 
@@ -257,6 +281,8 @@ public partial class MainViewModel : ViewModelBase
 
         GamePath = _settings.GamePath;
         OnPropertyChanged(nameof(Username));
+        BindActiveProfile(_profileService.GetActive());
+        RefreshProfileList();
         UpdateStatus();
 
         if (IsInstalledPage)
@@ -266,6 +292,94 @@ public partial class MainViewModel : ViewModelBase
             await LoadCategoriesAsync();
             await LoadModsAsync();
         }
+    }
+
+    [RelayCommand]
+    private async Task ManageProfilesAsync() => await OpenSettingsAsync("profiles");
+
+    [RelayCommand]
+    private async Task SelectProfileAsync(string? profileId)
+    {
+        if (string.IsNullOrWhiteSpace(profileId))
+            return;
+
+        if (string.Equals(profileId, ActiveProfileId, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (IsGameRunning || GameProcessService.IsRunning(GamePath))
+        {
+            StatusText = L.Get(ProfileKeys.GameRunning);
+            return;
+        }
+
+        var result = await Task.Run(() => _profileService.SetActive(profileId));
+        if (!result.Success)
+        {
+            StatusText = L.Get(Main.ProfileSwitchFailed, result.Error ?? "");
+            return;
+        }
+
+        var active = _profileService.GetActive();
+        BindActiveProfile(active);
+        RefreshProfileList();
+        StatusText = L.Get(Main.ProfileSwitched, active.Name);
+
+        if (IsInstalledPage)
+            await LoadInstalledModsAsync();
+    }
+
+    [RelayCommand]
+    private void LaunchGame()
+    {
+        if (!GamePathValidator.IsValid(GamePath))
+        {
+            StatusText = L.Get(Main.GamePathNotConfigured);
+            return;
+        }
+
+        var active = _profileService.GetActive();
+        if (!active.IsVanilla && !GameProcessService.IsRunning(GamePath))
+        {
+            var mount = _overlayService.EnsureApplied(active, GamePath);
+            if (!mount.Success)
+            {
+                StatusText = L.Get(Main.ProfileSwitchFailed, mount.Error ?? "");
+                return;
+            }
+        }
+
+        if (!GameProcessService.TryLaunch(GamePath, out var error))
+        {
+            StatusText = L.Get(Main.LaunchFailed, error ?? "");
+            return;
+        }
+
+        // Capture runtime disk writes into the active profile when the game exits.
+        if (!active.IsVanilla)
+            _sessionCapture.Start(active.Id, GamePath);
+
+        StatusText = L.Get(Main.LaunchStarted);
+        IsGameRunning = true;
+        _wasGameRunning = true;
+        StartGameProcessMonitoring();
+    }
+
+    private void RefreshProfileList()
+    {
+        Profiles.Clear();
+        var activeId = _profileService.ActiveProfileId;
+        foreach (var profile in _profileService.List())
+            Profiles.Add(ProfileItemViewModel.From(profile, activeId));
+
+        BindActiveProfile(_profileService.GetActive());
+    }
+
+    private void BindActiveProfile(GameProfile profile)
+    {
+        ActiveProfileId = profile.Id;
+        ActiveProfileName = profile.Name;
+        IsVanillaProfile = profile.IsVanilla;
+        _installedModsService.UseProfile(profile.Id, profile.IsVanilla);
     }
 
     partial void OnCurrentPageChanged(MainPage value) => NotifyPageStates();
@@ -453,6 +567,20 @@ public partial class MainViewModel : ViewModelBase
 
         try
         {
+            if (IsVanillaProfile)
+            {
+                InstalledMods.Clear();
+                SetEmptyState(
+                    isError: false,
+                    isSearch: false,
+                    title: L.Get(Main.NoInstalledTitle),
+                    subtitle: L.Get(Main.NoInstalledVanillaHint));
+                StatusText = L.Get(Main.InstalledEnabledSummary, 0, 0);
+                OnPropertyChanged(nameof(EnabledCount));
+                OnPropertyChanged(nameof(TotalCount));
+                return;
+            }
+
             if (!GamePathValidator.IsValid(GamePath))
             {
                 InstalledMods.Clear();
@@ -467,7 +595,7 @@ public partial class MainViewModel : ViewModelBase
                 return;
             }
 
-            var installed = _installedModsService.ScanAndMerge(GamePath);
+            var installed = await Task.Run(() => _installedModsService.ScanAndMerge());
             InstalledMods.Clear();
 
             foreach (var mod in installed.OrderByDescending(m => m.InstalledAt))
@@ -519,7 +647,11 @@ public partial class MainViewModel : ViewModelBase
                     isError: false,
                     isSearch: hasSearch,
                     title: hasSearch ? L.Get(Main.NoMatchTitle) : L.Get(Main.NoInstalledTitle),
-                    subtitle: hasSearch ? L.Get(Main.NoMatchHint) : L.Get(Main.NoInstalledHint));
+                    subtitle: hasSearch
+                        ? L.Get(Main.NoMatchHint)
+                        : IsVanillaProfile
+                            ? L.Get(Main.NoInstalledVanillaHint)
+                            : L.Get(Main.NoInstalledHint));
                 StatusText = L.Get(Main.InstalledEnabledSummary, 0, 0);
             }
             else
@@ -564,6 +696,21 @@ public partial class MainViewModel : ViewModelBase
         _gameProcessTimer.Stop();
         _gameProcessTimer.Tick -= OnGameProcessTimerTick;
 
+        // If the game was running under capture, absorb before clearing state.
+        if (_wasGameRunning || _sessionCapture.IsActive)
+        {
+            try
+            {
+                _sessionCapture.StopAndAbsorb();
+            }
+            catch
+            {
+                // best-effort on teardown
+            }
+        }
+
+        _wasGameRunning = false;
+
         if (!IsGameRunning)
             return;
 
@@ -577,15 +724,64 @@ public partial class MainViewModel : ViewModelBase
     private void RefreshGameRunningState()
     {
         var running = GameProcessService.IsRunning(GamePath);
+
+        // Game already running when loader starts (non-vanilla): start capture so exit can absorb.
+        if (running && !_sessionCapture.IsActive && !IsVanillaProfile &&
+            GamePathValidator.IsValid(GamePath))
+        {
+            _sessionCapture.Start(ActiveProfileId, GamePath);
+            _wasGameRunning = true;
+        }
+
         if (running == IsGameRunning)
             return;
 
+        var stopped = _wasGameRunning && !running;
+        _wasGameRunning = running;
         IsGameRunning = running;
         UpdateInstalledModToggleAvailability();
         OnPropertyChanged(nameof(GameRunningToggleTooltip));
 
+        if (stopped)
+            _ = AbsorbRuntimeChangesAsync();
+
         if (IsInstalledPage && !IsLoading)
             UpdateStatus();
+    }
+
+    private async Task AbsorbRuntimeChangesAsync()
+    {
+        if (!_sessionCapture.IsActive && string.IsNullOrWhiteSpace(_sessionCapture.ActiveProfileId))
+        {
+            // Session may still be active if Start was called — StopAndAbsorb handles empty.
+        }
+
+        try
+        {
+            StatusText = L.Get(Main.CapturingRuntimeChanges);
+            var result = await Task.Run(() => _sessionCapture.StopAndAbsorb());
+            if (!result.Success)
+            {
+                StatusText = L.Get(Main.CaptureRuntimeFailed, result.Error ?? "");
+                return;
+            }
+
+            var summary = result.SummaryMessage();
+            if (!string.IsNullOrWhiteSpace(summary))
+            {
+                StatusText = summary;
+                if (IsInstalledPage)
+                    await LoadInstalledModsAsync();
+            }
+            else
+            {
+                UpdateStatus();
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusText = L.Get(Main.CaptureRuntimeFailed, ex.Message);
+        }
     }
 
     private void UpdateInstalledModToggleAvailability()
@@ -932,6 +1128,7 @@ public partial class MainViewModel : ViewModelBase
 
     protected override void OnLocalizationChanged()
     {
+        RefreshProfileList();
         _ = RefreshModsAsync();
     }
 }

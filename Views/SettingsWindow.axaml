@@ -8,6 +8,7 @@
         mc:Ignorable="d"
         d:DesignWidth="680" d:DesignHeight="520"
         x:Class="UnturnedModLoader.Views.SettingsWindow"
+        x:Name="settingsRoot"
         x:DataType="vm:SettingsViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="{c:I18n {x:Static i18n:Settings.Title}}"
@@ -61,6 +62,15 @@
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <LucideIcon Kind="Folder" Size="16" Foreground="{StaticResource MidGrayBrush}" />
                             <TextBlock Text="{c:I18n {x:Static i18n:Settings.GameSection}}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="sidebar"
+                            Classes.selected="{Binding IsProfilesSection}"
+                            Command="{Binding SelectSectionCommand}"
+                            CommandParameter="profiles">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <LucideIcon Kind="Layers" Size="16" Foreground="{StaticResource MidGrayBrush}" />
+                            <TextBlock Text="{c:I18n {x:Static i18n:Settings.ProfilesSection}}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                     <Button Classes="sidebar"
@@ -141,6 +151,104 @@
                                            Foreground="{StaticResource InkSoftBrush}"
                                            TextWrapping="Wrap" />
                             </Border>
+                        </StackPanel>
+
+                        <StackPanel IsVisible="{Binding IsProfilesSection}" Spacing="14">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="{c:I18n {x:Static i18n:ProfileKeys.Title}}"
+                                           FontSize="15"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource InkBrush}" />
+                                <TextBlock Text="{c:I18n {x:Static i18n:ProfileKeys.Desc}}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource MidGrayBrush}"
+                                           TextWrapping="Wrap"
+                                           LineHeight="18" />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBox Text="{Binding NewProfileName}"
+                                         Width="200"
+                                         PlaceholderText="{c:I18n {x:Static i18n:ProfileKeys.NewName}}" />
+                                <Button Classes="primary iconText"
+                                        Command="{Binding CreateProfileCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <LucideIcon Kind="Plus" Size="16" Foreground="{StaticResource BgPaperBrush}" />
+                                        <TextBlock Text="{c:I18n {x:Static i18n:ProfileKeys.Create}}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+
+                            <ItemsControl ItemsSource="{Binding Profiles}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ProfileItemViewModel">
+                                        <Border Background="{StaticResource BgPaperBrush}"
+                                                BorderBrush="{StaticResource HairlineBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="12,10"
+                                                Margin="0,0,0,8">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   FontSize="13"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource InkBrush}" />
+                                                        <Border Background="{StaticResource BgSurfaceAltBrush}"
+                                                                CornerRadius="4"
+                                                                Padding="6,2"
+                                                                IsVisible="{Binding IsActive}">
+                                                            <TextBlock Text="{c:I18n {x:Static i18n:ProfileKeys.Active}}"
+                                                                       FontSize="11"
+                                                                       Foreground="{StaticResource MidGrayBrush}" />
+                                                        </Border>
+                                                        <Border Background="{StaticResource BgSurfaceAltBrush}"
+                                                                CornerRadius="4"
+                                                                Padding="6,2"
+                                                                IsVisible="{Binding IsBuiltIn}">
+                                                            <TextBlock Text="{c:I18n {x:Static i18n:ProfileKeys.BuiltIn}}"
+                                                                       FontSize="11"
+                                                                       Foreground="{StaticResource MidGrayBrush}" />
+                                                        </Border>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1"
+                                                            Orientation="Horizontal"
+                                                            Spacing="6"
+                                                            VerticalAlignment="Center">
+                                                    <Button Classes="iconText"
+                                                            Command="{Binding #settingsRoot.((vm:SettingsViewModel)DataContext).ActivateProfileCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            IsVisible="{Binding !IsActive}">
+                                                        <TextBlock Text="{c:I18n {x:Static i18n:ProfileKeys.SetActive}}" />
+                                                    </Button>
+                                                    <Button Classes="icon"
+                                                            ToolTip.Tip="{c:I18n {x:Static i18n:ProfileKeys.OpenFolder}}"
+                                                            Command="{Binding #settingsRoot.((vm:SettingsViewModel)DataContext).OpenProfileFolderCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            IsVisible="{Binding !IsVanilla}">
+                                                        <LucideIcon Kind="FolderOpen" Size="16" />
+                                                    </Button>
+                                                    <Button Classes="icon"
+                                                            ToolTip.Tip="{c:I18n {x:Static i18n:ProfileKeys.Delete}}"
+                                                            Command="{Binding #settingsRoot.((vm:SettingsViewModel)DataContext).DeleteProfileCommand}"
+                                                            CommandParameter="{Binding}"
+                                                            IsVisible="{Binding !IsBuiltIn}">
+                                                        <LucideIcon Kind="Trash2" Size="16" />
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Text="{Binding ProfileStatus}"
+                                       FontSize="12"
+                                       Foreground="{StaticResource MidGrayBrush}"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding ProfileStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                         </StackPanel>
 
                         <StackPanel IsVisible="{Binding IsAccountSection}" Spacing="14">

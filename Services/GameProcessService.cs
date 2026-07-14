@@ -42,4 +42,31 @@ public static class GameProcessService
                 process.Dispose();
         }
     }
+
+    public static bool TryLaunch(string gamePath, out string? error)
+    {
+        error = null;
+        if (!GamePathValidator.IsValid(gamePath))
+        {
+            error = "Game path is not valid.";
+            return false;
+        }
+
+        var exe = Path.Combine(gamePath, GamePathValidator.ExecutableName);
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = exe,
+                WorkingDirectory = gamePath,
+                UseShellExecute = true,
+            });
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
 }

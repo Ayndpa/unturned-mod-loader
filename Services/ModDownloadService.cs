@@ -9,10 +9,13 @@ namespace UnturnedModLoader.Services;
 
 public sealed class ModDownloadService
 {
+    /// <param name="modulesFolder">
+    /// Profile overlay Modules folder (e.g. profiles\{id}\overlay\Modules). Null → save dialog.
+    /// </param>
     public async Task<ModInstallResult> DownloadAndInstallAsync(
         IModsApiClient modsApi,
         int modId,
-        string? gamePath,
+        string? modulesFolder,
         Window owner,
         CancellationToken cancellationToken = default)
     {
@@ -20,11 +23,10 @@ public sealed class ModDownloadService
         if (!download.Success || download.Content is null || string.IsNullOrWhiteSpace(download.FileName))
             return ModInstallResult.Failed(download.Error ?? "Download failed.");
 
-        if (GamePathValidator.IsValid(gamePath))
+        if (!string.IsNullOrWhiteSpace(modulesFolder))
         {
             try
             {
-                var modulesFolder = InstalledModsService.GetModsFolder(gamePath!);
                 Directory.CreateDirectory(modulesFolder);
                 InstallToModules(modulesFolder, download.FileName, download.Content);
                 return ModInstallResult.Installed(modulesFolder);

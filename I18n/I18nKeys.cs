@@ -162,6 +162,37 @@ public static class Main
     public const string EnableDependencyMessage = "Localization.Main.EnableDependencyMessage";
     public const string EnableWithDependencies = "Localization.Main.EnableWithDependencies";
     public const string GameRunningToggleBlocked = "Localization.Main.GameRunningToggleBlocked";
+    public const string LaunchFailed = "Localization.Main.LaunchFailed";
+    public const string LaunchStarted = "Localization.Main.LaunchStarted";
+    public const string VanillaInstallBlocked = "Localization.Main.VanillaInstallBlocked";
+    public const string ProfileSwitched = "Localization.Main.ProfileSwitched";
+    public const string ProfileSwitchFailed = "Localization.Main.ProfileSwitchFailed";
+    public const string ManageProfiles = "Localization.Main.ManageProfiles";
+    public const string NoInstalledVanillaHint = "Localization.Main.NoInstalledVanillaHint";
+    public const string CapturingRuntimeChanges = "Localization.Main.CapturingRuntimeChanges";
+    public const string CaptureRuntimeFailed = "Localization.Main.CaptureRuntimeFailed";
+}
+
+public static class ProfileKeys
+{
+    public const string VanillaName = "Localization.Profile.VanillaName";
+    public const string DefaultName = "Localization.Profile.DefaultName";
+    public const string Section = "Localization.Profile.Section";
+    public const string Title = "Localization.Profile.Title";
+    public const string Desc = "Localization.Profile.Desc";
+    public const string Active = "Localization.Profile.Active";
+    public const string Create = "Localization.Profile.Create";
+    public const string NewName = "Localization.Profile.NewName";
+    public const string Rename = "Localization.Profile.Rename";
+    public const string Delete = "Localization.Profile.Delete";
+    public const string SetActive = "Localization.Profile.SetActive";
+    public const string OpenFolder = "Localization.Profile.OpenFolder";
+    public const string BuiltIn = "Localization.Profile.BuiltIn";
+    public const string Status = "Localization.Profile.Status";
+    public const string GameRunning = "Localization.Profile.GameRunning";
+    public const string CreateFailed = "Localization.Profile.CreateFailed";
+    public const string DeleteFailed = "Localization.Profile.DeleteFailed";
+    public const string SwitchFailed = "Localization.Profile.SwitchFailed";
 }
 
 public static class InstalledModDetail
@@ -203,12 +234,14 @@ public static class ModDetail
     public const string DownloadInstalled = "Localization.ModDetail.DownloadInstalled";
     public const string DownloadSaved = "Localization.ModDetail.DownloadSaved";
     public const string LoginRequired = "Localization.ModDetail.LoginRequired";
+    public const string VanillaBlocked = "Localization.ModDetail.VanillaBlocked";
 }
 
 public static class Settings
 {
     public const string Title = "Localization.Settings.Title";
     public const string GameSection = "Localization.Settings.GameSection";
+    public const string ProfilesSection = "Localization.Settings.ProfilesSection";
     public const string AccountSection = "Localization.Settings.AccountSection";
     public const string ApiSection = "Localization.Settings.ApiSection";
     public const string AppearanceSection = "Localization.Settings.AppearanceSection";

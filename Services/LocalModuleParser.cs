@@ -21,8 +21,13 @@ public sealed class LocalModuleParser
         if (!GamePathValidator.IsValid(gamePath))
             return [];
 
-        var modulesRoot = InstalledModsService.GetModsFolder(gamePath);
-        if (!Directory.Exists(modulesRoot))
+        return ScanModulesRoot(InstalledModsService.GetModsFolder(gamePath));
+    }
+
+    /// <summary>Scan an arbitrary Modules root (profile store or game junction target).</summary>
+    public IReadOnlyList<ParsedLocalMod> ScanModulesRoot(string modulesRoot)
+    {
+        if (string.IsNullOrWhiteSpace(modulesRoot) || !Directory.Exists(modulesRoot))
             return [];
 
         var referencedDlls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

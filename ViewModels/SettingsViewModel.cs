@@ -1,10 +1,10 @@
+using System.Collections.ObjectModel;
 using System.Runtime.Versioning;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using UnturnedModLoader.I18n;
 using UnturnedModLoader.Models;
-using UnturnedModLoader.Models.Api;
 using UnturnedModLoader.Services;
 using UnturnedModLoader.Views;
 
@@ -16,6 +16,8 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly AppSettings _settings;
     private readonly FolderPickerService _folderPicker;
     private readonly AuthSessionService _session;
+    private readonly ProfileService _profileService;
+    private readonly GameOverlayService _overlayService;
     private readonly Window _owner;
     private string _currentRole = "";
 
@@ -55,6 +57,12 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     private string _selectedTheme = "system";
 
+    [ObservableProperty]
+    private string _profileStatus = "";
+
+    [ObservableProperty]
+    private string _newProfileName = "";
+
     public bool IsLoggedIn => _settings.IsLoggedIn;
     public IReadOnlyList<string> LocaleOptions { get; } = ["zh", "en"];
     public bool IsZhLocaleSelected => SelectedLocale == "zh";
@@ -63,8 +71,11 @@ public partial class SettingsViewModel : ViewModelBase
     public bool IsDarkThemeSelected => SelectedTheme == "dark";
     public bool IsSystemThemeSelected => SelectedTheme == "system";
     public bool IsGameSection => SelectedSection == "game";
+    public bool IsProfilesSection => SelectedSection == "profiles";
     public bool IsAccountSection => SelectedSection == "account";
     public bool IsAppearanceSection => SelectedSection == "appearance";
+
+    public ObservableCollection<ProfileItemViewModel> Profiles { get; } = [];
 
     public event Action? CloseRequested;
 
@@ -73,12 +84,17 @@ public partial class SettingsViewModel : ViewModelBase
         AppSettings settings,
         FolderPickerService folderPicker,
         AuthSessionService session,
-        Window owner)
+        ProfileService profileService,
+        GameOverlayService overlayService,
+        Window owner,
+        string? initialSection = null)
     {
         _settingsService = settingsService;
         _settings = settings;
         _folderPicker = folderPicker;
         _session = session;
+        _profileService = profileService;
+        _overlayService = overlayService;
         _owner = owner;
 
         _gamePath = settings.GamePath;
@@ -87,8 +103,13 @@ public partial class SettingsViewModel : ViewModelBase
             ? LocalizationService.DetectDefaultLocaleCode()
             : settings.Locale;
         _selectedTheme = ThemeService.NormalizePreference(settings.Theme);
+        _newProfileName = L.Get(ProfileKeys.NewName);
+
+        if (!string.IsNullOrWhiteSpace(initialSection))
+            _selectedSection = initialSection;
 
         UpdateGamePathStatus();
+        RefreshProfiles();
 
         if (IsLoggedIn)
             _ = LoadAccountAsync();
@@ -175,6 +196,85 @@ public partial class SettingsViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    private void CreateProfile()
+    {
+        try
+        {
+            var name = string.IsNullOrWhiteSpace(NewProfileName)
+                ? L.Get(ProfileKeys.NewName)
+                : NewProfileName.Trim();
+            _profileService.Create(name);
+            NewProfileName = L.Get(ProfileKeys.NewName);
+            ProfileStatus = "";
+            RefreshProfiles();
+        }
+        catch (Exception ex)
+        {
+            ProfileStatus = L.Get(ProfileKeys.CreateFailed) + " " + ex.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void ActivateProfile(ProfileItemViewModel? profile)
+    {
+        if (profile is null)
+            return;
+
+        if (GameProcessService.IsRunning(_settings.GamePath))
+        {
+            ProfileStatus = L.Get(ProfileKeys.GameRunning);
+            return;
+        }
+
+        var result = _profileService.SetActive(profile.Id);
+        ProfileStatus = result.Success
+            ? ""
+            : L.Get(ProfileKeys.SwitchFailed, result.Error ?? "");
+        RefreshProfiles();
+    }
+
+    [RelayCommand]
+    private void DeleteProfile(ProfileItemViewModel? profile)
+    {
+        if (profile is null || profile.IsBuiltIn || profile.IsVanilla)
+            return;
+
+        if (GameProcessService.IsRunning(_settings.GamePath))
+        {
+            ProfileStatus = L.Get(ProfileKeys.GameRunning);
+            return;
+        }
+
+        var result = _profileService.Delete(profile.Id);
+        ProfileStatus = result.Success
+            ? ""
+            : L.Get(ProfileKeys.DeleteFailed, result.Error ?? "");
+        RefreshProfiles();
+    }
+
+    [RelayCommand]
+    private void OpenProfileFolder(ProfileItemViewModel? profile)
+    {
+        if (profile is null || profile.IsVanilla)
+            return;
+
+        try
+        {
+            var dir = AppPaths.ProfileDir(profile.Id);
+            Directory.CreateDirectory(dir);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = dir,
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            ProfileStatus = ex.Message;
+        }
+    }
+
+    [RelayCommand]
     private async Task RefreshAccountAsync() => await LoadAccountAsync();
 
     [RelayCommand]
@@ -253,6 +353,14 @@ public partial class SettingsViewModel : ViewModelBase
         }
     }
 
+    private void RefreshProfiles()
+    {
+        Profiles.Clear();
+        var activeId = _profileService.ActiveProfileId;
+        foreach (var profile in _profileService.List())
+            Profiles.Add(ProfileItemViewModel.From(profile, activeId));
+    }
+
     private async Task LoadAccountAsync()
     {
         if (!IsLoggedIn)
@@ -295,8 +403,20 @@ public partial class SettingsViewModel : ViewModelBase
         if (!IsPathValid && !string.IsNullOrWhiteSpace(GamePath))
             return;
 
+        var previous = _settings.GamePath;
         _settings.GamePath = GamePath;
         _settingsService.Save(_settings);
+
+        if (IsPathValid &&
+            !string.Equals(previous, GamePath, StringComparison.OrdinalIgnoreCase) &&
+            !GameProcessService.IsRunning(GamePath))
+        {
+            // Tear down overlay on the previous install, then apply to the new path.
+            if (!string.IsNullOrWhiteSpace(previous) && GamePathValidator.IsValid(previous))
+                _overlayService.UnapplyAll(previous, ignoreGameRunning: true);
+
+            _profileService.SyncActiveMounts();
+        }
     }
 
     private void UpdateGamePathStatus()
@@ -333,6 +453,7 @@ public partial class SettingsViewModel : ViewModelBase
     partial void OnSelectedSectionChanged(string value)
     {
         OnPropertyChanged(nameof(IsGameSection));
+        OnPropertyChanged(nameof(IsProfilesSection));
         OnPropertyChanged(nameof(IsAccountSection));
         OnPropertyChanged(nameof(IsAppearanceSection));
     }
@@ -348,6 +469,7 @@ public partial class SettingsViewModel : ViewModelBase
         UpdateGamePathStatus();
         if (!string.IsNullOrWhiteSpace(_currentRole))
             RoleLabel = MapRoleLabel(_currentRole);
+        RefreshProfiles();
     }
 
     [SupportedOSPlatform("windows")]

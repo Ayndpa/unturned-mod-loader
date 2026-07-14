@@ -12,6 +12,7 @@ public partial class OnboardingViewModel : ViewModelBase
     private readonly SettingsService _settingsService;
     private readonly AppSettings _settings;
     private readonly FolderPickerService _folderPicker;
+    private readonly ProfileService _profileService;
 
     [ObservableProperty]
     private int _currentStep;
@@ -37,11 +38,13 @@ public partial class OnboardingViewModel : ViewModelBase
     public OnboardingViewModel(
         SettingsService settingsService,
         AppSettings settings,
-        FolderPickerService folderPicker)
+        FolderPickerService folderPicker,
+        ProfileService profileService)
     {
         _settingsService = settingsService;
         _settings = settings;
         _folderPicker = folderPicker;
+        _profileService = profileService;
         _gamePath = settings.GamePath;
         UpdatePathValidity();
     }
@@ -119,8 +122,37 @@ public partial class OnboardingViewModel : ViewModelBase
     private void CompleteOnboarding(bool saveGamePath)
     {
         _settings.OnboardingCompleted = true;
+        _settings.SettingsVersion = 2;
         _settings.GamePath = saveGamePath && IsPathValid ? GamePath : "";
-        _settingsService.Save(_settings);
+
+        if (saveGamePath && IsPathValid)
+        {
+            var existingUserProfiles = _profileService.List().Where(p => !p.IsVanilla).ToList();
+            if (existingUserProfiles.Count == 0)
+            {
+                var created = _profileService.Create(L.Get(ProfileKeys.DefaultName));
+                _settings.ActiveProfileId = created.Id;
+                _settingsService.Save(_settings);
+                _profileService.SetActive(created.Id);
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(_settings.ActiveProfileId) ||
+                    string.Equals(_settings.ActiveProfileId, GameProfile.VanillaId, StringComparison.OrdinalIgnoreCase))
+                {
+                    _settings.ActiveProfileId = existingUserProfiles[0].Id;
+                }
+
+                _settingsService.Save(_settings);
+                _profileService.SetActive(_settings.ActiveProfileId);
+            }
+        }
+        else
+        {
+            _settings.ActiveProfileId = GameProfile.VanillaId;
+            _settingsService.Save(_settings);
+        }
+
         Completed?.Invoke(_settings);
     }
 
@@ -151,8 +183,10 @@ public partial class OnboardingViewModel : ViewModelBase
         IsPathValid = GamePathValidator.IsValid(GamePath);
     }
 
-    protected override void OnLocalizationChanged() =>
+    protected override void OnLocalizationChanged()
+    {
         OnPropertyChanged(nameof(StepIndicator));
+    }
 
     [SupportedOSPlatform("windows")]
     private static SteamDetectionResult DetectOnWindows() => SteamLocator.DetectUnturned();

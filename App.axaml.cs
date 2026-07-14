@@ -30,10 +30,16 @@ public partial class App : Application
             LocalizationService.Initialize(settings);
             ThemeService.Initialize(settings);
 
+            var overlayService = new GameOverlayService();
+            settingsService.MigrateIfNeeded(settings, overlayService);
+
+            var profileService = new ProfileService(settingsService, settings, overlayService);
+            profileService.SyncActiveMounts();
+
             if (!settings.OnboardingCompleted)
-                ShowOnboarding(desktop, settingsService, settings);
+                ShowOnboarding(desktop, settingsService, settings, profileService, overlayService);
             else
-                ShowMain(desktop, settingsService, settings);
+                ShowMain(desktop, settingsService, settings, profileService, overlayService);
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -42,15 +48,18 @@ public partial class App : Application
     private static void ShowOnboarding(
         IClassicDesktopStyleApplicationLifetime desktop,
         SettingsService settingsService,
-        AppSettings settings)
+        AppSettings settings,
+        ProfileService profileService,
+        GameOverlayService overlayService)
     {
         var onboardingWindow = new OnboardingWindow();
         var folderPicker = new FolderPickerService(onboardingWindow);
-        var viewModel = new OnboardingViewModel(settingsService, settings, folderPicker);
+        var viewModel = new OnboardingViewModel(settingsService, settings, folderPicker, profileService);
 
         viewModel.Completed += completedSettings =>
         {
-            ShowMain(desktop, settingsService, completedSettings);
+            profileService.SyncActiveMounts();
+            ShowMain(desktop, settingsService, completedSettings, profileService, overlayService);
             onboardingWindow.Close();
         };
 
@@ -61,10 +70,12 @@ public partial class App : Application
     private static void ShowMain(
         IClassicDesktopStyleApplicationLifetime desktop,
         SettingsService settingsService,
-        AppSettings settings)
+        AppSettings settings,
+        ProfileService profileService,
+        GameOverlayService overlayService)
     {
         var api = new ApiClientBundle(settings);
-        var mainWindow = CreateMainWindow(settingsService, settings, api);
+        var mainWindow = CreateMainWindow(settingsService, settings, api, profileService, overlayService);
         desktop.MainWindow = mainWindow;
         mainWindow.Show();
     }
@@ -72,7 +83,9 @@ public partial class App : Application
     private static MainWindow CreateMainWindow(
         SettingsService settingsService,
         AppSettings settings,
-        ApiClientBundle api)
+        ApiClientBundle api,
+        ProfileService profileService,
+        GameOverlayService overlayService)
     {
         var mainWindow = new MainWindow();
         var folderPicker = new FolderPickerService(mainWindow);
@@ -80,6 +93,9 @@ public partial class App : Application
 
         var imageService = new RemoteImageService(api.SharedHttpClient);
         var installedModsService = new InstalledModsService();
+        var active = profileService.GetActive();
+        installedModsService.UseProfile(active.Id, active.IsVanilla);
+        var sessionCapture = new GameSessionCaptureService(overlayService);
 
         mainWindow.DataContext = new MainViewModel(
             settingsService,
@@ -89,6 +105,9 @@ public partial class App : Application
             session,
             imageService,
             installedModsService,
+            profileService,
+            overlayService,
+            sessionCapture,
             mainWindow);
 
         return mainWindow;

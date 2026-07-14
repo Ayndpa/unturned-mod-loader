@@ -46,6 +46,68 @@
                     </StackPanel>
                 </StackPanel>
 
+                <Button Grid.Column="1"
+                        Classes="iconText"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Padding="12,8">
+                    <Button.Flyout>
+                        <Flyout Placement="Bottom">
+                            <Border Background="{StaticResource BgPaperBrush}"
+                                    BorderBrush="{StaticResource HairlineBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="6"
+                                    MinWidth="220">
+                                <StackPanel Spacing="2">
+                                    <ItemsControl ItemsSource="{Binding Profiles}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:ProfileItemViewModel">
+                                                <Button Classes="sidebar"
+                                                        Classes.selected="{Binding IsActive}"
+                                                        HorizontalAlignment="Stretch"
+                                                        Command="{Binding #MainView.((vm:MainViewModel)DataContext).SelectProfileCommand}"
+                                                        CommandParameter="{Binding Id}">
+                                                    <Grid ColumnDefinitions="*,Auto">
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="{Binding Name}"
+                                                                   VerticalAlignment="Center" />
+                                                        <LucideIcon Grid.Column="1"
+                                                                    Kind="Check"
+                                                                    Size="14"
+                                                                    IsVisible="{Binding IsActive}"
+                                                                    Foreground="{StaticResource SuccessBrush}" />
+                                                    </Grid>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Border Height="1"
+                                            Background="{StaticResource HairlineBrush}"
+                                            Margin="4,6" />
+                                    <Button Classes="sidebar"
+                                            HorizontalAlignment="Stretch"
+                                            Command="{Binding ManageProfilesCommand}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <LucideIcon Kind="Settings2" Size="14" Foreground="{StaticResource MidGrayBrush}" />
+                                            <TextBlock Text="{c:I18n {x:Static i18n:Main.ManageProfiles}}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                        </Flyout>
+                    </Button.Flyout>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <LucideIcon Kind="Layers" Size="16" Foreground="{StaticResource MidGrayBrush}" />
+                        <TextBlock Text="{Binding ActiveProfileName}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource InkBrush}"
+                                   VerticalAlignment="Center" />
+                        <LucideIcon Kind="ChevronDown" Size="14" Foreground="{StaticResource MidGrayBrush}" />
+                    </StackPanel>
+                </Button>
+
                 <StackPanel Grid.Column="2"
                             Orientation="Horizontal"
                             Spacing="8"
@@ -66,7 +128,9 @@
                             Command="{Binding OpenSettingsCommand}">
                         <LucideIcon Kind="Settings" Size="18" />
                     </Button>
-                    <Button Classes="primary iconText" Padding="14,8">
+                    <Button Classes="primary iconText"
+                            Padding="14,8"
+                            Command="{Binding LaunchGameCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <LucideIcon Kind="Play" Size="16" Foreground="{StaticResource BgPaperBrush}" />
                             <TextBlock Text="{c:I18n {x:Static i18n:Main.LaunchGame}}" VerticalAlignment="Center" />
