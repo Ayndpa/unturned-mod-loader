@@ -44,3 +44,6 @@ Desktop.ini
 # Publish / local settings
 *.publishsettings
 appsettings.*.local.json
+
+publish/
+releases/
