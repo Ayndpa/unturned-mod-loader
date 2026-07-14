@@ -148,33 +148,6 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </StackPanel>
-
-                    <Border Height="1"
-                            Background="{StaticResource HairlineBrush}"
-                            Margin="4,16" />
-
-                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="12,0,0,8">
-                        <LucideIcon Kind="Zap" Size="12" Foreground="{StaticResource MidGrayBrush}" />
-                        <TextBlock Text="{c:I18n {x:Static i18n:Main.QuickActions}}"
-                                   FontSize="11"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource MidGrayBrush}"
-                                   LetterSpacing="0.5"
-                                   VerticalAlignment="Center" />
-                    </StackPanel>
-
-                    <Button Classes="sidebar" Command="{Binding OpenModsFolderCommand}">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <LucideIcon Kind="FolderOpen" Size="16" Foreground="{StaticResource MidGrayBrush}" />
-                            <TextBlock Text="{c:I18n {x:Static i18n:Main.OpenModsFolder}}" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                    <Button Classes="sidebar" Command="{Binding OpenGameFolderCommand}">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <LucideIcon Kind="FolderOpen" Size="16" Foreground="{StaticResource MidGrayBrush}" />
-                            <TextBlock Text="{c:I18n {x:Static i18n:Main.BrowseGameFolder}}" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
                     </StackPanel>
                 </ScrollViewer>
             </Border>

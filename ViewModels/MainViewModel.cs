@@ -240,30 +240,6 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void OpenModsFolder()
-    {
-        if (!GamePathValidator.IsValid(GamePath))
-        {
-            StatusText = L.Get(Main.GamePathInvalid);
-            return;
-        }
-
-        _installedModsService.OpenModsFolder(GamePath);
-    }
-
-    [RelayCommand]
-    private void OpenGameFolder()
-    {
-        if (!GamePathValidator.IsValid(GamePath))
-        {
-            StatusText = L.Get(Main.GamePathInvalid);
-            return;
-        }
-
-        _installedModsService.OpenGameFolder(GamePath);
-    }
-
-    [RelayCommand]
     private async Task OpenSettingsAsync()
     {
         var viewModel = new SettingsViewModel(

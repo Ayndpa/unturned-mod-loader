@@ -147,31 +147,6 @@ public class InstalledModsService
         return true;
     }
 
-    public void OpenModsFolder(string gamePath)
-    {
-        if (!GamePathValidator.IsValid(gamePath))
-            return;
-
-        var folder = GetModsFolder(gamePath);
-        Directory.CreateDirectory(folder);
-        OpenFolderInExplorer(folder);
-    }
-
-    public void OpenGameFolder(string gamePath)
-    {
-        if (!GamePathValidator.IsValid(gamePath))
-            return;
-
-        OpenFolderInExplorer(gamePath);
-    }
-
-    private static void OpenFolderInExplorer(string folder) =>
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = folder,
-            UseShellExecute = true,
-        });
-
     public void Save()
     {
         var json = JsonSerializer.Serialize(_manifest, JsonOptions);

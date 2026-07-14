@@ -126,9 +126,6 @@ public static class Main
     public const string BrowseMods = "Localization.Main.BrowseMods";
     public const string InstalledMods = "Localization.Main.InstalledMods";
     public const string Categories = "Localization.Main.Categories";
-    public const string QuickActions = "Localization.Main.QuickActions";
-    public const string OpenModsFolder = "Localization.Main.OpenModsFolder";
-    public const string BrowseGameFolder = "Localization.Main.BrowseGameFolder";
     public const string SearchPlaceholder = "Localization.Main.SearchPlaceholder";
     public const string AddMod = "Localization.Main.AddMod";
     public const string Reload = "Localization.Main.Reload";
