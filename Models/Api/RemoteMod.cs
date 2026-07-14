@@ -13,6 +13,9 @@ public class RemoteMod
     [JsonPropertyName("description")]
     public string? Description { get; set; }
 
+    [JsonPropertyName("body")]
+    public string? Body { get; set; }
+
     [JsonPropertyName("category")]
     public string Category { get; set; } = "";
 

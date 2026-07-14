@@ -175,8 +175,11 @@ public partial class ModDetailViewModel : ViewModelBase
         Author = mod.AuthorName;
         Version = string.IsNullOrWhiteSpace(mod.Version) ? "—" : mod.Version;
         Category = ModCategoryMapper.ToLabel(mod.Category);
-        HasDescription = !string.IsNullOrWhiteSpace(mod.Description);
-        DescriptionMarkdown = mod.Description ?? "";
+        var markdown = !string.IsNullOrWhiteSpace(mod.Body)
+            ? mod.Body
+            : mod.Description;
+        HasDescription = !string.IsNullOrWhiteSpace(markdown);
+        DescriptionMarkdown = markdown ?? "";
         HasFile = mod.HasFile;
         _downloadCount = mod.Downloads;
         DownloadsText = _downloadCount.ToString("N0");
