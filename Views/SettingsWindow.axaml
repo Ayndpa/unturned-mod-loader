@@ -381,21 +381,21 @@
                                 </StackPanel>
 
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Button Classes="sidebar"
+                                    <Button Classes="segment"
                                             Classes.selected="{Binding IsLightThemeSelected}"
                                             Command="{Binding SelectThemeCommand}"
                                             CommandParameter="light"
                                             Padding="14,10">
                                         <TextBlock Text="{c:I18n {x:Static i18n:ThemeKeys.Light}}" />
                                     </Button>
-                                    <Button Classes="sidebar"
+                                    <Button Classes="segment"
                                             Classes.selected="{Binding IsDarkThemeSelected}"
                                             Command="{Binding SelectThemeCommand}"
                                             CommandParameter="dark"
                                             Padding="14,10">
                                         <TextBlock Text="{c:I18n {x:Static i18n:ThemeKeys.Dark}}" />
                                     </Button>
-                                    <Button Classes="sidebar"
+                                    <Button Classes="segment"
                                             Classes.selected="{Binding IsSystemThemeSelected}"
                                             Command="{Binding SelectThemeCommand}"
                                             CommandParameter="system"
@@ -421,14 +421,14 @@
                                 </StackPanel>
 
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Button Classes="sidebar"
+                                    <Button Classes="segment"
                                             Classes.selected="{Binding IsZhLocaleSelected}"
                                             Command="{Binding SelectLocaleCommand}"
                                             CommandParameter="zh"
                                             Padding="14,10">
                                         <TextBlock Text="{c:I18n {x:Static i18n:LocaleKeys.Zh}}" />
                                     </Button>
-                                    <Button Classes="sidebar"
+                                    <Button Classes="segment"
                                             Classes.selected="{Binding IsEnLocaleSelected}"
                                             Command="{Binding SelectLocaleCommand}"
                                             CommandParameter="en"

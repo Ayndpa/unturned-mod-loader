@@ -55,6 +55,12 @@ public sealed class ApiClientBundle : IDisposable
         }
     }
 
+    public void SaveToken(AppSettings settings, string token)
+    {
+        settings.AuthToken = token;
+        _cookies.Add(_baseUri, new Cookie("token", token, "/", _baseUri.Host));
+    }
+
     public void ClearSession(AppSettings settings)
     {
         foreach (Cookie cookie in _cookies.GetCookies(_baseUri))

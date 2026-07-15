@@ -1,6 +1,9 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Avalonia.Controls;
+using UnturnedModLoader.Services.Api;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using UnturnedModLoader.I18n;
@@ -311,11 +314,6 @@ public partial class SettingsViewModel : ViewModelBase
             loggedIn = true;
             loginWindow.Close();
         };
-        viewModel.RegisterRequested += () =>
-        {
-            loginWindow.Close();
-            _ = OpenRegisterAsync();
-        };
 
         loginWindow.DataContext = viewModel;
         await loginWindow.ShowDialog(_owner);
@@ -329,27 +327,21 @@ public partial class SettingsViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task OpenRegisterAsync()
+    private void OpenRegister()
     {
-        var registerWindow = new RegisterWindow();
-        var viewModel = new RegisterViewModel(_session, _settings);
-        var registered = false;
-
-        viewModel.Registered += _ =>
+        var baseUrl = ModsApiClientFactory.ResolveBaseUrl(_settings).TrimEnd('/');
+        var url = $"{baseUrl}/register";
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            registered = true;
-            registerWindow.Close();
-        };
-        viewModel.LoginRequested += () => registerWindow.Close();
-
-        registerWindow.DataContext = viewModel;
-        await registerWindow.ShowDialog(_owner);
-
-        if (registered)
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
-            Username = _settings.Username ?? "";
-            NotifyLoginState();
-            await LoadAccountAsync();
+            Process.Start("open", url);
+        }
+        else
+        {
+            Process.Start("xdg-open", url);
         }
     }
 

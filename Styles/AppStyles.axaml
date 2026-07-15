@@ -55,6 +55,31 @@
         <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
 
+    <Style Selector="Button.segment">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{StaticResource HairlineBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="14,8" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+    </Style>
+
+    <Style Selector="Button.segment:pointerover">
+        <Setter Property="Background" Value="{StaticResource BgCanvasBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource HairlineBrush}" />
+    </Style>
+
+    <Style Selector="Button.segment.selected">
+        <Setter Property="Background" Value="{StaticResource InkBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource InkBrush}" />
+        <Setter Property="Foreground" Value="{StaticResource BgPaperBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Button.segment.selected TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource BgPaperBrush}" />
+    </Style>
+
     <Style Selector="Button.ghost">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />

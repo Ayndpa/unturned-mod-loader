@@ -40,6 +40,11 @@ public sealed class AuthSessionService(
         return result;
     }
 
+    public void SaveToken(string token)
+    {
+        api.SaveToken(settings, token);
+    }
+
     public async Task<AuthResult> RegisterAsync(
         string username,
         string email,
