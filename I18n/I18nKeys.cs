@@ -200,6 +200,7 @@ public static class InstalledModDetail
     public const string Title = "Localization.InstalledModDetail.Title";
     public const string TypeModule = "Localization.InstalledModDetail.TypeModule";
     public const string TypeDll = "Localization.InstalledModDetail.TypeDll";
+    public const string TypeScripted = "Localization.InstalledModDetail.TypeScripted";
     public const string StatusEnabled = "Localization.InstalledModDetail.StatusEnabled";
     public const string StatusDisabled = "Localization.InstalledModDetail.StatusDisabled";
     public const string DisabledBadge = "Localization.InstalledModDetail.DisabledBadge";
@@ -228,6 +229,8 @@ public static class ModDetail
     public const string FileSize = "Localization.ModDetail.FileSize";
     public const string Tags = "Localization.ModDetail.Tags";
     public const string NoTags = "Localization.ModDetail.NoTags";
+    public const string Dependencies = "Localization.ModDetail.Dependencies";
+    public const string NoDependencies = "Localization.ModDetail.NoDependencies";
     public const string Download = "Localization.ModDetail.Download";
     public const string Downloading = "Localization.ModDetail.Downloading";
     public const string DownloadFailed = "Localization.ModDetail.DownloadFailed";

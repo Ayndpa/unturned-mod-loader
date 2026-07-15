@@ -42,6 +42,8 @@ public enum LocalModKind
 {
     Module,
     Dll,
+    /// <summary>Installed via a developer-supplied install script. Tracked by file manifest.</summary>
+    Scripted,
 }
 
 public class ParsedLocalMod

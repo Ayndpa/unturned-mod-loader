@@ -39,9 +39,12 @@ public partial class InstalledModDetailViewModel : ViewModelBase
     public void Load(InstalledModItemViewModel mod)
     {
         Title = mod.Title;
-        TypeLabel = mod.Kind == LocalModKind.Module
-            ? L.Get(InstalledModDetail.TypeModule)
-            : L.Get(InstalledModDetail.TypeDll);
+        TypeLabel = mod.Kind switch
+        {
+            LocalModKind.Module => L.Get(InstalledModDetail.TypeModule),
+            LocalModKind.Scripted => L.Get(InstalledModDetail.TypeScripted),
+            _ => L.Get(InstalledModDetail.TypeDll),
+        };
         Version = mod.Version;
         StatusLabel = mod.IsEnabled
             ? L.Get(InstalledModDetail.StatusEnabled)

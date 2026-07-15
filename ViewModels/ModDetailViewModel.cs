@@ -34,6 +34,9 @@ public partial class ModDetailViewModel : ViewModelBase
     public string CommentsText { get; private set; } = "";
     public string FileSizeText { get; private set; } = "";
     public string TagsText { get; private set; } = "";
+    public List<RemoteModDependency> Dependencies { get; private set; } = [];
+    public bool HasDependencies => Dependencies.Count > 0;
+    public string DependenciesText { get; private set; } = "";
 
     [ObservableProperty]
     private Bitmap? _coverImage;
@@ -63,6 +66,12 @@ public partial class ModDetailViewModel : ViewModelBase
 
     public event Action? CloseRequested;
     public event Action? DownloadCompleted;
+
+    /// <summary>
+    /// When set, <see cref="DownloadAsync"/> fires automatically once the mod detail finishes
+    /// loading (used by browser-launched <c>unmod://install</c> intents).
+    /// </summary>
+    public bool AutoInstallAfterLoad { get; set; }
 
     public ModDetailViewModel(
         RemoteImageService imageService,
@@ -105,6 +114,9 @@ public partial class ModDetailViewModel : ViewModelBase
             IsLoading = false;
             NotifyDownloadState();
         }
+
+        if (AutoInstallAfterLoad && CanDownload)
+            _ = DownloadAsync();
     }
 
     [RelayCommand(CanExecute = nameof(CanDownload))]
@@ -138,7 +150,8 @@ public partial class ModDetailViewModel : ViewModelBase
                 _modsApi,
                 Id,
                 modulesFolder,
-                _owner);
+                _owner,
+                progress: msg => DownloadStatus = msg);
 
             if (result.Cancelled)
             {
@@ -189,6 +202,11 @@ public partial class ModDetailViewModel : ViewModelBase
         TagsText = mod.Tags.Count > 0
             ? string.Join(", ", mod.Tags)
             : L.Get(ModDetail.NoTags);
+        Dependencies = mod.Dependencies;
+        var depCount = Dependencies.Count;
+        DependenciesText = depCount > 0
+            ? string.Join(", ", Dependencies.Select(d => d.Title))
+            : "";
 
         OnPropertyChanged(nameof(Id));
         OnPropertyChanged(nameof(Title));
@@ -203,6 +221,9 @@ public partial class ModDetailViewModel : ViewModelBase
         OnPropertyChanged(nameof(CommentsText));
         OnPropertyChanged(nameof(FileSizeText));
         OnPropertyChanged(nameof(TagsText));
+        OnPropertyChanged(nameof(Dependencies));
+        OnPropertyChanged(nameof(HasDependencies));
+        OnPropertyChanged(nameof(DependenciesText));
         OnPropertyChanged(nameof(HasError));
     }
 

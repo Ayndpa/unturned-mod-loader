@@ -21,6 +21,19 @@ public class InstalledMod
     public bool IsEnabled { get; set; } = true;
     public long InstalledAt { get; set; }
 
+    /// <summary>
+    /// For <see cref="LocalModKind.Scripted"/> mods: every overlay-relative path the install
+    /// script created or modified. Recorded via overlay snapshot diff so uninstall can clean up
+    /// even if the developer's uninstall script is incomplete.
+    /// </summary>
+    public List<string> InstalledFiles { get; set; } = [];
+
+    /// <summary>
+    /// For <see cref="LocalModKind.Scripted"/> mods: profile-relative staging directory holding
+    /// the extracted archive (incl. scripts). Retained for uninstall scripts to reference.
+    /// </summary>
+    public string? StagingDir { get; set; }
+
     /// <summary>Backward-compatible alias for <see cref="RelativePath"/>.</summary>
     public string FileName
     {

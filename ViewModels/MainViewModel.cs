@@ -30,6 +30,7 @@ public partial class MainViewModel : ViewModelBase
     private readonly ProfileService _profileService;
     private readonly GameOverlayService _overlayService;
     private readonly GameSessionCaptureService _sessionCapture;
+    private readonly ModDownloadService _downloadService;
     private readonly Window _owner;
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _loadCts;
@@ -116,6 +117,7 @@ public partial class MainViewModel : ViewModelBase
         ProfileService profileService,
         GameOverlayService overlayService,
         GameSessionCaptureService sessionCapture,
+        ModDownloadService downloadService,
         Window owner)
     {
         _settingsService = settingsService;
@@ -128,6 +130,7 @@ public partial class MainViewModel : ViewModelBase
         _profileService = profileService;
         _overlayService = overlayService;
         _sessionCapture = sessionCapture;
+        _downloadService = downloadService;
         _owner = owner;
         _gamePath = settings.GamePath;
         _statusText = L.Get(Main.Ready);
@@ -198,20 +201,35 @@ public partial class MainViewModel : ViewModelBase
     {
         if (mod is null)
             return;
+        await OpenModDetailsByIdAsync(mod.Id, autoInstall: false);
+    }
 
+    /// <summary>
+    /// Handle a browser-launched install intent (<c>unmod://install/{id}</c>): open the mod
+    /// detail dialog and auto-start the install once details load.
+    /// </summary>
+    public void ConsumePendingInstall(int modId) => _ = OpenModDetailsByIdAsync(modId, autoInstall: true);
+
+    private async Task OpenModDetailsByIdAsync(int modId, bool autoInstall)
+    {
         var viewModel = new ModDetailViewModel(
             _imageService,
             _modsApi.BaseUrl,
             _modsApi,
             _settings,
             _owner,
-            getInstallModulesFolder: () => IsVanillaProfile ? null : _installedModsService.ModulesRoot);
+            downloadService: _downloadService,
+            getInstallModulesFolder: () => IsVanillaProfile ? null : _installedModsService.ModulesRoot)
+        {
+            AutoInstallAfterLoad = autoInstall,
+        };
+
         var dialog = new ModDetailWindow { DataContext = viewModel };
         var downloadCompleted = false;
 
         viewModel.CloseRequested += () => dialog.Close();
         viewModel.DownloadCompleted += () => downloadCompleted = true;
-        _ = viewModel.LoadAsync(mod.Id);
+        _ = viewModel.LoadAsync(modId);
         await dialog.ShowDialog(_owner);
 
         if (downloadCompleted && !IsVanillaProfile)
@@ -611,9 +629,12 @@ public partial class MainViewModel : ViewModelBase
                     ModuleName = mod.ModuleName,
                     Author = mod.Author ?? "—",
                     Version = string.IsNullOrWhiteSpace(mod.Version) ? "—" : mod.Version,
-                    Category = mod.Kind == LocalModKind.Module
-                        ? L.Get(InstalledModDetail.TypeModule)
-                        : L.Get(InstalledModDetail.TypeDll),
+                    Category = mod.Kind switch
+                    {
+                        LocalModKind.Module => L.Get(InstalledModDetail.TypeModule),
+                        LocalModKind.Scripted => L.Get(InstalledModDetail.TypeScripted),
+                        _ => L.Get(InstalledModDetail.TypeDll),
+                    },
                     Description = string.IsNullOrWhiteSpace(mod.Description)
                         ? L.Get(Common.NoDescription)
                         : mod.Description,
@@ -626,6 +647,8 @@ public partial class MainViewModel : ViewModelBase
                     Dependencies = mod.Dependencies,
                     Assemblies = mod.Assemblies,
                     IsEnabled = mod.IsEnabled,
+                    // Scripted mods are managed by their scripts; no in-place toggle.
+                    CanToggle = mod.Kind != LocalModKind.Scripted,
                 };
 
                 vm.PropertyChanged += async (_, e) =>
@@ -788,7 +811,7 @@ public partial class MainViewModel : ViewModelBase
     {
         var canToggle = !IsGameRunning;
         foreach (var vm in InstalledMods)
-            vm.CanToggle = canToggle;
+            vm.CanToggle = canToggle && vm.Kind != LocalModKind.Scripted;
     }
 
     partial void OnIsGameRunningChanged(bool value)

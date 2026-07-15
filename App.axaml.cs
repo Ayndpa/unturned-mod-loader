@@ -78,6 +78,16 @@ public partial class App : Application
         var mainWindow = CreateMainWindow(settingsService, settings, api, profileService, overlayService);
         desktop.MainWindow = mainWindow;
         mainWindow.Show();
+
+        // Register the unmod:// scheme so future browser installs can launch us.
+        ProtocolRegistrar.EnsureRegistered();
+
+        // If launched from a browser/CLI with an install intent, act on it now.
+        if (Program.PendingInstallModId is { } modId && mainWindow.DataContext is MainViewModel vm)
+        {
+            vm.ConsumePendingInstall(modId);
+            Program.PendingInstallModId = null;
+        }
     }
 
     private static MainWindow CreateMainWindow(
@@ -92,10 +102,12 @@ public partial class App : Application
         var session = new AuthSessionService(api, settingsService, settings);
 
         var imageService = new RemoteImageService(api.SharedHttpClient);
-        var installedModsService = new InstalledModsService();
+        var scriptService = new ModScriptService();
+        var installedModsService = new InstalledModsService(scriptService);
         var active = profileService.GetActive();
         installedModsService.UseProfile(active.Id, active.IsVanilla);
         var sessionCapture = new GameSessionCaptureService(overlayService);
+        var downloadService = new ModDownloadService(scriptService, installedModsService);
 
         mainWindow.DataContext = new MainViewModel(
             settingsService,
@@ -108,6 +120,7 @@ public partial class App : Application
             profileService,
             overlayService,
             sessionCapture,
+            downloadService,
             mainWindow);
 
         return mainWindow;

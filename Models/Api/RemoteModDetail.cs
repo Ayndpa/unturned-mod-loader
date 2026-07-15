@@ -7,6 +7,9 @@ public class RemoteModDetail : RemoteMod
     [JsonPropertyName("tags")]
     public List<string> Tags { get; set; } = [];
 
+    [JsonPropertyName("dependencies")]
+    public List<RemoteModDependency> Dependencies { get; set; } = [];
+
     [JsonPropertyName("comment_count")]
     public int CommentCount { get; set; }
 
