@@ -309,7 +309,7 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private void DeleteProfile(ProfileItemViewModel? profile)
     {
-        if (profile is null || profile.IsBuiltIn || profile.IsVanilla)
+        if (profile is null || profile.IsBuiltIn)
             return;
 
         if (GameProcessService.IsRunning(_settings.GamePath))
@@ -328,7 +328,7 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private void OpenProfileFolder(ProfileItemViewModel? profile)
     {
-        if (profile is null || profile.IsVanilla)
+        if (profile is null)
             return;
 
         try

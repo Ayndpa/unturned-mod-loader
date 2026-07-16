@@ -118,7 +118,6 @@
       "LoadingInstalled": "正在扫描已安装模组…",
       "NoInstalledTitle": "还没有已安装模组",
       "NoInstalledHint": "在模组档案激活时安装模组。文件保存在档案目录，并挂载到游戏中。",
-      "NoInstalledVanillaHint": "原版档案不会挂载任何模组。切换到模组档案后再安装与管理。",
       "ParsingInstalled": "正在解析本地模组…",
       "InstalledCount": "已安装 {0} 个模组",
       "InstalledEnabledSummary": "已启用 {0} / 共 {1} 个模组",
@@ -134,7 +133,6 @@
       "GameRunningToggleBlocked": "游戏正在运行，请先关闭游戏后再切换模组",
       "LaunchFailed": "启动游戏失败：{0}",
       "LaunchStarted": "正在启动 Unturned…",
-      "VanillaInstallBlocked": "请先切换到模组档案再安装模组。",
       "ProfileSwitched": "已切换档案：{0}",
       "ProfileSwitchFailed": "切换档案失败：{0}",
       "ManageProfiles": "管理档案…",
@@ -266,14 +264,13 @@
       "DownloadInstalled": "模组已安装到当前档案。",
       "DownloadSaved": "模组已保存到：{0}",
       "LoginRequired": "下载模组需要先登录账号。",
-      "VanillaBlocked": "请先切换到模组档案再安装模组。"
+      "ProfileRequired": "请先配置游戏目录并确保当前档案可用。"
     },
     "Profile": {
-      "VanillaName": "原版",
       "DefaultName": "默认档案",
       "Section": "档案",
       "Title": "模组档案",
-      "Desc": "每个档案是一套虚拟模组集合，激活时挂载到 Unturned 安装目录。原版档案会让游戏目录保持干净。",
+      "Desc": "每个档案由游戏原版文件与你在 overlay 中的修改/模组组合成虚拟目录；切换档案会重新挂载到游戏安装目录。",
       "Active": "当前",
       "Create": "新建档案",
       "NewName": "新档案",

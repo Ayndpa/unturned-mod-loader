@@ -81,10 +81,7 @@ public partial class MainViewModel : ViewModelBase
     private string _activeProfileName = "";
 
     [ObservableProperty]
-    private string _activeProfileId = GameProfile.VanillaId;
-
-    [ObservableProperty]
-    private bool _isVanillaProfile = true;
+    private string _activeProfileId = GameProfile.DefaultBuiltInId;
 
     public string? GameRunningToggleTooltip =>
         IsGameRunning ? L.Get(Main.GameRunningToggleBlocked) : null;
@@ -219,7 +216,7 @@ public partial class MainViewModel : ViewModelBase
             _settings,
             _owner,
             downloadService: _downloadService,
-            getInstallModulesFolder: () => IsVanillaProfile ? null : _installedModsService.ModulesRoot)
+            getInstallModulesFolder: () => _installedModsService.ModulesRoot)
         {
             AutoInstallAfterLoad = autoInstall,
         };
@@ -232,7 +229,7 @@ public partial class MainViewModel : ViewModelBase
         _ = viewModel.LoadAsync(modId);
         await dialog.ShowDialog(_owner);
 
-        if (downloadCompleted && !IsVanillaProfile)
+        if (downloadCompleted)
         {
             _installedModsService.ScanAndMerge();
             if (IsInstalledPage)
@@ -356,7 +353,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         var active = _profileService.GetActive();
-        if (!active.IsVanilla && !GameProcessService.IsRunning(GamePath))
+        if (!GameProcessService.IsRunning(GamePath))
         {
             var mount = _overlayService.EnsureApplied(active, GamePath);
             if (!mount.Success)
@@ -372,9 +369,7 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        // Capture runtime disk writes into the active profile when the game exits.
-        if (!active.IsVanilla)
-            _sessionCapture.Start(active.Id, GamePath);
+        _sessionCapture.Start(active.Id, GamePath);
 
         StatusText = L.Get(Main.LaunchStarted);
         IsGameRunning = true;
@@ -396,8 +391,7 @@ public partial class MainViewModel : ViewModelBase
     {
         ActiveProfileId = profile.Id;
         ActiveProfileName = profile.Name;
-        IsVanillaProfile = profile.IsVanilla;
-        _installedModsService.UseProfile(profile.Id, profile.IsVanilla);
+        _installedModsService.UseProfile(profile.Id);
     }
 
     partial void OnCurrentPageChanged(MainPage value) => NotifyPageStates();
@@ -585,20 +579,6 @@ public partial class MainViewModel : ViewModelBase
 
         try
         {
-            if (IsVanillaProfile)
-            {
-                InstalledMods.Clear();
-                SetEmptyState(
-                    isError: false,
-                    isSearch: false,
-                    title: L.Get(Main.NoInstalledTitle),
-                    subtitle: L.Get(Main.NoInstalledVanillaHint));
-                StatusText = L.Get(Main.InstalledEnabledSummary, 0, 0);
-                OnPropertyChanged(nameof(EnabledCount));
-                OnPropertyChanged(nameof(TotalCount));
-                return;
-            }
-
             if (!GamePathValidator.IsValid(GamePath))
             {
                 InstalledMods.Clear();
@@ -672,9 +652,7 @@ public partial class MainViewModel : ViewModelBase
                     title: hasSearch ? L.Get(Main.NoMatchTitle) : L.Get(Main.NoInstalledTitle),
                     subtitle: hasSearch
                         ? L.Get(Main.NoMatchHint)
-                        : IsVanillaProfile
-                            ? L.Get(Main.NoInstalledVanillaHint)
-                            : L.Get(Main.NoInstalledHint));
+                        : L.Get(Main.NoInstalledHint));
                 StatusText = L.Get(Main.InstalledEnabledSummary, 0, 0);
             }
             else
@@ -748,9 +726,7 @@ public partial class MainViewModel : ViewModelBase
     {
         var running = GameProcessService.IsRunning(GamePath);
 
-        // Game already running when loader starts (non-vanilla): start capture so exit can absorb.
-        if (running && !_sessionCapture.IsActive && !IsVanillaProfile &&
-            GamePathValidator.IsValid(GamePath))
+        if (running && !_sessionCapture.IsActive && GamePathValidator.IsValid(GamePath))
         {
             _sessionCapture.Start(ActiveProfileId, GamePath);
             _wasGameRunning = true;

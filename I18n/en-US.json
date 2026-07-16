@@ -118,7 +118,6 @@
       "LoadingInstalled": "Scanning installed mods…",
       "NoInstalledTitle": "No installed mods yet",
       "NoInstalledHint": "Install mods while a mod profile is active. Files live in the profile store and mount into the game.",
-      "NoInstalledVanillaHint": "Vanilla profile has no mods mounted. Switch to a mod profile to install and manage mods.",
       "ParsingInstalled": "Parsing local mods…",
       "InstalledCount": "{0} mods installed",
       "InstalledEnabledSummary": "{0} enabled / {1} mods total",
@@ -134,7 +133,6 @@
       "GameRunningToggleBlocked": "The game is running. Close it before toggling mods.",
       "LaunchFailed": "Failed to launch game: {0}",
       "LaunchStarted": "Launching Unturned…",
-      "VanillaInstallBlocked": "Switch to a mod profile before installing mods.",
       "ProfileSwitched": "Switched to profile: {0}",
       "ProfileSwitchFailed": "Could not switch profile: {0}",
       "ManageProfiles": "Manage profiles…",
@@ -266,14 +264,13 @@
       "DownloadInstalled": "Mod installed to the active profile.",
       "DownloadSaved": "Mod saved to: {0}",
       "LoginRequired": "Sign in to download mods.",
-      "VanillaBlocked": "Switch to a mod profile before installing mods."
+      "ProfileRequired": "Configure a valid game folder and ensure the active profile is ready."
     },
     "Profile": {
-      "VanillaName": "Vanilla",
       "DefaultName": "Default",
       "Section": "Profiles",
       "Title": "Mod Profiles",
-      "Desc": "Each profile is a virtual mod set mounted onto your Unturned install. Vanilla leaves the game folder clean.",
+      "Desc": "Each profile combines your game install with overlay changes and mods into a virtual tree; switching profiles remounts onto the game folder.",
       "Active": "Active",
       "Create": "New Profile",
       "NewName": "New profile",

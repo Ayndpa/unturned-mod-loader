@@ -164,18 +164,15 @@ public static class Main
     public const string GameRunningToggleBlocked = "Localization.Main.GameRunningToggleBlocked";
     public const string LaunchFailed = "Localization.Main.LaunchFailed";
     public const string LaunchStarted = "Localization.Main.LaunchStarted";
-    public const string VanillaInstallBlocked = "Localization.Main.VanillaInstallBlocked";
     public const string ProfileSwitched = "Localization.Main.ProfileSwitched";
     public const string ProfileSwitchFailed = "Localization.Main.ProfileSwitchFailed";
     public const string ManageProfiles = "Localization.Main.ManageProfiles";
-    public const string NoInstalledVanillaHint = "Localization.Main.NoInstalledVanillaHint";
     public const string CapturingRuntimeChanges = "Localization.Main.CapturingRuntimeChanges";
     public const string CaptureRuntimeFailed = "Localization.Main.CaptureRuntimeFailed";
 }
 
 public static class ProfileKeys
 {
-    public const string VanillaName = "Localization.Profile.VanillaName";
     public const string DefaultName = "Localization.Profile.DefaultName";
     public const string Section = "Localization.Profile.Section";
     public const string Title = "Localization.Profile.Title";
@@ -237,7 +234,7 @@ public static class ModDetail
     public const string DownloadInstalled = "Localization.ModDetail.DownloadInstalled";
     public const string DownloadSaved = "Localization.ModDetail.DownloadSaved";
     public const string LoginRequired = "Localization.ModDetail.LoginRequired";
-    public const string VanillaBlocked = "Localization.ModDetail.VanillaBlocked";
+    public const string ProfileRequired = "Localization.ModDetail.ProfileRequired";
 }
 
 public static class Settings

@@ -139,9 +139,9 @@ public partial class ModDetailViewModel : ViewModelBase
         try
         {
             var modulesFolder = _getInstallModulesFolder?.Invoke();
-            if (_getInstallModulesFolder is not null && string.IsNullOrWhiteSpace(modulesFolder))
+            if (string.IsNullOrWhiteSpace(modulesFolder))
             {
-                DownloadStatus = L.Get(ModDetail.VanillaBlocked);
+                DownloadStatus = L.Get(ModDetail.ProfileRequired);
                 OnPropertyChanged(nameof(HasDownloadStatus));
                 return;
             }

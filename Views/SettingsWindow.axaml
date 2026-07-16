@@ -279,7 +279,7 @@
                                                             ToolTip.Tip="{c:I18n {x:Static i18n:ProfileKeys.OpenFolder}}"
                                                             Command="{Binding #settingsRoot.((vm:SettingsViewModel)DataContext).OpenProfileFolderCommand}"
                                                             CommandParameter="{Binding}"
-                                                            IsVisible="{Binding !IsVanilla}">
+                                                            IsVisible="True">
                                                         <LucideIcon Kind="FolderOpen" Size="16" />
                                                     </Button>
                                                     <Button Classes="icon"
