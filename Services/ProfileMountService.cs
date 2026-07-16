@@ -33,9 +33,6 @@ public sealed class ProfileMountService
 
     public MountResult EnsureApplied(GameProfile profile, string gamePath)
     {
-        if (profile.IsVanilla)
-            return Unapply(gamePath);
-
         if (!GamePathValidator.IsValid(gamePath))
             return MountResult.Fail("Game path is not valid.");
 
@@ -47,9 +44,6 @@ public sealed class ProfileMountService
 
     public MountResult Apply(GameProfile profile, string gamePath)
     {
-        if (profile.IsVanilla)
-            return Unapply(gamePath);
-
         if (!OperatingSystem.IsWindows())
             return MountResult.Fail("Profile mounts require Windows.");
 

@@ -23,18 +23,21 @@ public sealed class ProfileService
         Directory.CreateDirectory(AppPaths.ProfilesRoot);
     }
 
-    public string ActiveProfileId =>
-        string.IsNullOrWhiteSpace(_settings.ActiveProfileId)
-            ? GameProfile.VanillaId
-            : _settings.ActiveProfileId;
+    public string ActiveProfileId => _settings.ActiveProfileId;
 
-    public GameProfile GetActive() =>
-        GetById(ActiveProfileId) ?? GameProfile.CreateVanilla(GetVanillaDisplayName());
+    public GameProfile GetActive()
+    {
+        EnsureAtLeastOneProfile();
+        return GetById(ActiveProfileId) ?? List()[0];
+    }
 
     public GameProfile? GetById(string id)
     {
-        if (string.Equals(id, GameProfile.VanillaId, StringComparison.OrdinalIgnoreCase))
-            return GameProfile.CreateVanilla(GetVanillaDisplayName());
+        if (string.IsNullOrWhiteSpace(id))
+            return null;
+
+        if (string.Equals(id, GameProfile.DefaultBuiltInId, StringComparison.OrdinalIgnoreCase))
+            return GameProfile.CreateBuiltInDefault(GetDefaultDisplayName());
 
         var path = AppPaths.ProfileMetaPath(id);
         if (!File.Exists(path))
@@ -43,7 +46,13 @@ public sealed class ProfileService
         try
         {
             var json = File.ReadAllText(path);
-            return JsonSerializer.Deserialize<GameProfile>(json, JsonOptions);
+            var profile = JsonSerializer.Deserialize<GameProfile>(json, JsonOptions);
+            if (profile is null)
+                return null;
+
+            profile.IsBuiltIn = profile.IsBuiltIn
+                                || string.Equals(profile.Id, GameProfile.DefaultBuiltInId, StringComparison.OrdinalIgnoreCase);
+            return profile;
         }
         catch
         {
@@ -53,10 +62,17 @@ public sealed class ProfileService
 
     public IReadOnlyList<GameProfile> List()
     {
-        var list = new List<GameProfile>
+        var list = new List<GameProfile>();
+
+        var builtIn = GetById(GameProfile.DefaultBuiltInId);
+        if (builtIn is not null)
+            list.Add(builtIn);
+        else if (Directory.Exists(Path.Combine(AppPaths.ProfilesRoot, GameProfile.DefaultBuiltInId)))
         {
-            GameProfile.CreateVanilla(GetVanillaDisplayName()),
-        };
+            builtIn = GameProfile.CreateBuiltInDefault(GetDefaultDisplayName());
+            SaveMeta(builtIn);
+            list.Add(builtIn);
+        }
 
         if (!Directory.Exists(AppPaths.ProfilesRoot))
             return list;
@@ -64,7 +80,8 @@ public sealed class ProfileService
         foreach (var dir in Directory.EnumerateDirectories(AppPaths.ProfilesRoot))
         {
             var id = Path.GetFileName(dir);
-            if (string.Equals(id, GameProfile.VanillaId, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(id, GameProfile.DefaultBuiltInId, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(id, "vanilla", StringComparison.OrdinalIgnoreCase))
                 continue;
 
             var profile = GetById(id);
@@ -83,16 +100,52 @@ public sealed class ProfileService
         }
 
         return list
-            .OrderBy(p => p.IsVanilla ? 0 : 1)
+            .OrderBy(p => p.IsBuiltIn ? 0 : 1)
             .ThenBy(p => p.CreatedAt)
             .ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
-    public GameProfile Create(string name)
+    public void EnsureAtLeastOneProfile()
     {
-        var trimmed = string.IsNullOrWhiteSpace(name) ? "Profile" : name.Trim();
-        var profile = GameProfile.CreateUser(trimmed);
+        MigrateLegacyVanillaActiveId();
+
+        var profiles = List();
+        if (profiles.Count == 0)
+        {
+            var created = Create(GetDefaultDisplayName(), asBuiltIn: true, id: GameProfile.DefaultBuiltInId);
+            _settings.ActiveProfileId = created.Id;
+            _settingsService.Save(_settings);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_settings.ActiveProfileId)
+            || GetById(_settings.ActiveProfileId) is null)
+        {
+            _settings.ActiveProfileId = profiles[0].Id;
+            _settingsService.Save(_settings);
+        }
+    }
+
+    public GameProfile Create(string name, bool asBuiltIn = false, string? id = null)
+    {
+        var trimmed = string.IsNullOrWhiteSpace(name) ? GetDefaultDisplayName() : name.Trim();
+        GameProfile profile;
+        if (asBuiltIn && !string.IsNullOrWhiteSpace(id))
+        {
+            profile = new GameProfile
+            {
+                Id = id,
+                Name = trimmed,
+                IsBuiltIn = true,
+                CreatedAt = 0,
+            };
+        }
+        else
+        {
+            profile = GameProfile.CreateUser(trimmed);
+        }
+
         AppPaths.EnsureProfileLayout(profile.Id);
         SaveMeta(profile);
         return profile;
@@ -100,9 +153,6 @@ public sealed class ProfileService
 
     public bool Rename(string id, string newName)
     {
-        if (string.Equals(id, GameProfile.VanillaId, StringComparison.OrdinalIgnoreCase))
-            return false;
-
         var profile = GetById(id);
         if (profile is null)
             return false;
@@ -114,12 +164,20 @@ public sealed class ProfileService
 
     public MountResult Delete(string id)
     {
-        if (string.Equals(id, GameProfile.VanillaId, StringComparison.OrdinalIgnoreCase))
-            return MountResult.Fail("Cannot delete the vanilla profile.");
+        var profile = GetById(id);
+        if (profile is null)
+            return MountResult.Fail("Profile not found.");
+
+        if (profile.IsBuiltIn)
+            return MountResult.Fail("Cannot delete the built-in profile.");
+
+        if (List().Count <= 1)
+            return MountResult.Fail("Cannot delete the last profile.");
 
         if (string.Equals(ActiveProfileId, id, StringComparison.OrdinalIgnoreCase))
         {
-            var switchResult = SetActive(GameProfile.VanillaId);
+            var next = List().First(p => !string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
+            var switchResult = SetActive(next.Id);
             if (!switchResult.Success)
                 return switchResult;
         }
@@ -142,30 +200,16 @@ public sealed class ProfileService
 
     public MountResult SetActive(string id)
     {
-        var profile = GetById(id) ?? (string.Equals(id, GameProfile.VanillaId, StringComparison.OrdinalIgnoreCase)
-            ? GameProfile.CreateVanilla(GetVanillaDisplayName())
-            : null);
-
+        var profile = GetById(id);
         if (profile is null)
             return MountResult.Fail("Profile not found.");
 
         var gamePath = _settings.GamePath;
-        MountResult mountResult;
-        if (profile.IsVanilla)
-        {
-            mountResult = string.IsNullOrWhiteSpace(gamePath)
-                ? MountResult.Ok()
-                : _overlayService.UnapplyAll(gamePath);
-        }
-        else
-        {
-            if (!GamePathValidator.IsValid(gamePath))
-                return MountResult.Fail("Configure a valid game path first.");
+        if (!GamePathValidator.IsValid(gamePath))
+            return MountResult.Fail("Configure a valid game path first.");
 
-            AppPaths.EnsureProfileLayout(profile.Id);
-            mountResult = _overlayService.Apply(profile, gamePath);
-        }
-
+        AppPaths.EnsureProfileLayout(profile.Id);
+        var mountResult = _overlayService.Apply(profile, gamePath);
         if (!mountResult.Success)
             return mountResult;
 
@@ -174,18 +218,11 @@ public sealed class ProfileService
         return MountResult.Ok();
     }
 
-    /// <summary>Repair overlay for the current active profile (startup).</summary>
     public MountResult SyncActiveMounts()
     {
+        EnsureAtLeastOneProfile();
         var profile = GetActive();
         var gamePath = _settings.GamePath;
-
-        if (profile.IsVanilla)
-        {
-            if (GamePathValidator.IsValid(gamePath))
-                return _overlayService.UnapplyAll(gamePath, ignoreGameRunning: true);
-            return MountResult.Ok();
-        }
 
         if (!GamePathValidator.IsValid(gamePath))
             return MountResult.Ok();
@@ -198,23 +235,37 @@ public sealed class ProfileService
 
     public void SaveMeta(GameProfile profile)
     {
-        if (profile.IsVanilla)
-            return;
-
         AppPaths.EnsureProfileLayout(profile.Id);
         var json = JsonSerializer.Serialize(profile, JsonOptions);
         File.WriteAllText(AppPaths.ProfileMetaPath(profile.Id), json);
     }
 
-    private static string GetVanillaDisplayName()
+    private void MigrateLegacyVanillaActiveId()
+    {
+        if (!string.Equals(_settings.ActiveProfileId, "vanilla", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var userDirs = Directory.Exists(AppPaths.ProfilesRoot)
+            ? Directory.EnumerateDirectories(AppPaths.ProfilesRoot)
+                .Select(Path.GetFileName)
+                .Where(id => !string.IsNullOrWhiteSpace(id)
+                             && !string.Equals(id, "vanilla", StringComparison.OrdinalIgnoreCase))
+                .ToList()
+            : [];
+
+        _settings.ActiveProfileId = userDirs.Count > 0 ? userDirs[0]! : GameProfile.DefaultBuiltInId;
+        _settingsService.Save(_settings);
+    }
+
+    private static string GetDefaultDisplayName()
     {
         try
         {
-            return L.Get(I18n.ProfileKeys.VanillaName);
+            return L.Get(I18n.ProfileKeys.DefaultName);
         }
         catch
         {
-            return "Vanilla";
+            return "Default";
         }
     }
 }

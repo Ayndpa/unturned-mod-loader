@@ -66,6 +66,21 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     private string _newProfileName = "";
 
+    [ObservableProperty]
+    private string _winFspStatusText = "";
+
+    [ObservableProperty]
+    private bool _isWinFspInstalled;
+
+    [ObservableProperty]
+    private bool _isWinFspChecking;
+
+    [ObservableProperty]
+    private bool _canInstallWinFsp;
+
+    [ObservableProperty]
+    private string _winFspActionStatus = "";
+
     public bool IsLoggedIn => _settings.IsLoggedIn;
     public IReadOnlyList<string> LocaleOptions { get; } = ["zh", "en"];
     public bool IsZhLocaleSelected => SelectedLocale == "zh";
@@ -113,6 +128,7 @@ public partial class SettingsViewModel : ViewModelBase
 
         UpdateGamePathStatus();
         RefreshProfiles();
+        RefreshWinFspStatus();
 
         if (IsLoggedIn)
             _ = LoadAccountAsync();
@@ -183,6 +199,60 @@ public partial class SettingsViewModel : ViewModelBase
         {
             IsDetecting = false;
         }
+    }
+
+    [RelayCommand]
+    private async Task RefreshWinFspStatusAsync()
+    {
+        if (IsWinFspChecking)
+            return;
+
+        IsWinFspChecking = true;
+        WinFspActionStatus = L.Get(WinFspKeys.Checking);
+
+        try
+        {
+            await Task.Run(RefreshWinFspStatus);
+        }
+        finally
+        {
+            IsWinFspChecking = false;
+        }
+    }
+
+    [RelayCommand]
+    private void InstallWinFsp()
+    {
+        WinFspActionStatus = "";
+
+        if (!OperatingSystem.IsWindows())
+        {
+            WinFspActionStatus = L.Get(WinFspKeys.NotApplicable);
+            return;
+        }
+
+        if (!WinFspService.IsScriptBundlePresent())
+        {
+            WinFspActionStatus = L.Get(WinFspKeys.BundleMissing);
+            return;
+        }
+
+        var (started, message) = WinFspService.StartElevatedInstall();
+        if (!started)
+        {
+            if (message.Contains("canceled", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("cancelled", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("1223", StringComparison.Ordinal))
+            {
+                WinFspActionStatus = L.Get(WinFspKeys.UacCancelled);
+                return;
+            }
+
+            WinFspActionStatus = L.Get(WinFspKeys.InstallFailed, message);
+            return;
+        }
+
+        WinFspActionStatus = L.Get(WinFspKeys.InstallStarted);
     }
 
     [RelayCommand]
@@ -411,6 +481,50 @@ public partial class SettingsViewModel : ViewModelBase
         }
     }
 
+    private void RefreshWinFspStatus()
+    {
+        WinFspActionStatus = "";
+
+        if (!OperatingSystem.IsWindows())
+        {
+            IsWinFspInstalled = false;
+            CanInstallWinFsp = false;
+            WinFspStatusText = L.Get(WinFspKeys.NotApplicable);
+            return;
+        }
+
+        var status = WinFspService.IsScriptBundlePresent()
+            ? WinFspService.RefreshFromScript()
+            : WinFspService.GetStatus();
+
+        ApplyWinFspStatus(status);
+    }
+
+    private void ApplyWinFspStatus(WinFspStatus status)
+    {
+        switch (status.State)
+        {
+            case WinFspInstallState.Installed:
+                IsWinFspInstalled = true;
+                CanInstallWinFsp = false;
+                var suffix = string.IsNullOrWhiteSpace(status.Version)
+                    ? ""
+                    : $" ({status.Version})";
+                WinFspStatusText = L.Get(WinFspKeys.Installed, suffix);
+                break;
+            case WinFspInstallState.NotInstalled:
+                IsWinFspInstalled = false;
+                CanInstallWinFsp = WinFspService.IsScriptBundlePresent();
+                WinFspStatusText = L.Get(WinFspKeys.NotInstalled);
+                break;
+            default:
+                IsWinFspInstalled = false;
+                CanInstallWinFsp = false;
+                WinFspStatusText = L.Get(WinFspKeys.NotApplicable);
+                break;
+        }
+    }
+
     private void UpdateGamePathStatus()
     {
         IsPathValid = GamePathValidator.IsValid(GamePath);
@@ -459,6 +573,7 @@ public partial class SettingsViewModel : ViewModelBase
     protected override void OnLocalizationChanged()
     {
         UpdateGamePathStatus();
+        RefreshWinFspStatus();
         if (!string.IsNullOrWhiteSpace(_currentRole))
             RoleLabel = MapRoleLabel(_currentRole);
         RefreshProfiles();

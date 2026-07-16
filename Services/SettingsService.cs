@@ -42,12 +42,23 @@ public class SettingsService
     }
 
     /// <summary>
-    /// Migrates v1 single-Modules layout into multi-profile overlay storage.
+    /// Migrates v1 layout / legacy vanilla id into multi-profile overlay storage.
     /// </summary>
-    public string? MigrateIfNeeded(AppSettings settings, GameOverlayService overlayService)
+    public string? MigrateIfNeeded(AppSettings settings, GameOverlayService overlayService, ProfileService profileService)
     {
         AppPaths.EnsureAppData();
         Directory.CreateDirectory(AppPaths.ProfilesRoot);
+
+        if (string.Equals(settings.ActiveProfileId, "vanilla", StringComparison.OrdinalIgnoreCase))
+        {
+            var first = Directory.Exists(AppPaths.ProfilesRoot)
+                ? Directory.EnumerateDirectories(AppPaths.ProfilesRoot)
+                    .Select(Path.GetFileName)
+                    .FirstOrDefault(id => !string.IsNullOrWhiteSpace(id)
+                                          && !string.Equals(id, "vanilla", StringComparison.OrdinalIgnoreCase))
+                : null;
+            settings.ActiveProfileId = first ?? GameProfile.DefaultBuiltInId;
+        }
 
         var needsVersionBump = settings.SettingsVersion < 2;
         var legacyManifestExists = File.Exists(AppPaths.LegacyInstalledModsPath);
@@ -56,48 +67,41 @@ public class SettingsService
             : null;
 
         var realModulesHasContent = gameModules is not null
-            && Directory.Exists(gameModules)
-            && !JunctionHelper.IsJunction(gameModules)
-            && Directory.EnumerateFileSystemEntries(gameModules).Any();
+                                    && Directory.Exists(gameModules)
+                                    && !JunctionHelper.IsJunction(gameModules)
+                                    && Directory.EnumerateFileSystemEntries(gameModules).Any();
 
-        // Also migrate any profile still using mounts\Modules only.
         if (Directory.Exists(AppPaths.ProfilesRoot))
         {
             foreach (var dir in Directory.EnumerateDirectories(AppPaths.ProfilesRoot))
             {
                 var id = Path.GetFileName(dir);
-                AppPaths.EnsureProfileLayout(id);
+                if (!string.Equals(id, "vanilla", StringComparison.OrdinalIgnoreCase))
+                    AppPaths.EnsureProfileLayout(id!);
             }
         }
 
+        profileService.EnsureAtLeastOneProfile();
+
         if (!needsVersionBump && !legacyManifestExists && !realModulesHasContent)
         {
-            if (string.IsNullOrWhiteSpace(settings.ActiveProfileId))
-                settings.ActiveProfileId = GameProfile.VanillaId;
             if (settings.SettingsVersion < 2)
             {
                 settings.SettingsVersion = 2;
                 Save(settings);
             }
+
             return null;
         }
 
         if (settings.SettingsVersion < 2)
             settings.SettingsVersion = 2;
 
-        if (string.IsNullOrWhiteSpace(settings.ActiveProfileId))
-            settings.ActiveProfileId = GameProfile.VanillaId;
-
         string? message = null;
 
         if (legacyManifestExists || realModulesHasContent)
         {
-            var defaultProfile = GameProfile.CreateUser(GetDefaultProfileName());
-            AppPaths.EnsureProfileLayout(defaultProfile.Id);
-            File.WriteAllText(
-                AppPaths.ProfileMetaPath(defaultProfile.Id),
-                JsonSerializer.Serialize(defaultProfile, JsonOptions));
-
+            var defaultProfile = profileService.Create(GetDefaultProfileName());
             var modulesDest = AppPaths.ProfileModulesFolder(defaultProfile.Id);
             Directory.CreateDirectory(modulesDest);
 
@@ -114,7 +118,6 @@ public class SettingsService
                 catch (Exception ex)
                 {
                     message = $"Migration incomplete: {ex.Message}";
-                    settings.ActiveProfileId = GameProfile.VanillaId;
                     Save(settings);
                     return message;
                 }
@@ -144,30 +147,11 @@ public class SettingsService
 
         try
         {
-            if (!string.Equals(settings.ActiveProfileId, GameProfile.VanillaId, StringComparison.OrdinalIgnoreCase)
-                && GamePathValidator.IsValid(settings.GamePath)
+            if (GamePathValidator.IsValid(settings.GamePath)
                 && !GameProcessService.IsRunning(settings.GamePath))
             {
-                var profilePath = AppPaths.ProfileMetaPath(settings.ActiveProfileId);
-                GameProfile? profile = null;
-                if (File.Exists(profilePath))
-                {
-                    var json = File.ReadAllText(profilePath);
-                    profile = JsonSerializer.Deserialize<GameProfile>(json, JsonOptions);
-                }
-
-                profile ??= new GameProfile
-                {
-                    Id = settings.ActiveProfileId,
-                    Name = settings.ActiveProfileId,
-                };
-
-                overlayService.Apply(profile, settings.GamePath);
-            }
-            else if (string.Equals(settings.ActiveProfileId, GameProfile.VanillaId, StringComparison.OrdinalIgnoreCase)
-                     && GamePathValidator.IsValid(settings.GamePath))
-            {
-                overlayService.UnapplyAll(settings.GamePath, ignoreGameRunning: true);
+                var active = profileService.GetById(settings.ActiveProfileId) ?? profileService.GetActive();
+                overlayService.Apply(active, settings.GamePath);
             }
         }
         catch

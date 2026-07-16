@@ -284,6 +284,22 @@ public static class GamePathKeys
     public const string SelectedInvalid = "Localization.GamePath.SelectedInvalid";
 }
 
+public static class WinFspKeys
+{
+    public const string Title = "Localization.WinFsp.Title";
+    public const string Desc = "Localization.WinFsp.Desc";
+    public const string Installed = "Localization.WinFsp.Installed";
+    public const string NotInstalled = "Localization.WinFsp.NotInstalled";
+    public const string NotApplicable = "Localization.WinFsp.NotApplicable";
+    public const string Checking = "Localization.WinFsp.Checking";
+    public const string Install = "Localization.WinFsp.Install";
+    public const string Recheck = "Localization.WinFsp.Recheck";
+    public const string InstallStarted = "Localization.WinFsp.InstallStarted";
+    public const string InstallFailed = "Localization.WinFsp.InstallFailed";
+    public const string BundleMissing = "Localization.WinFsp.BundleMissing";
+    public const string UacCancelled = "Localization.WinFsp.UacCancelled";
+}
+
 public static class Steam
 {
     public const string WindowsOnly = "Localization.Steam.WindowsOnly";

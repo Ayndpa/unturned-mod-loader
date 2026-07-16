@@ -7,7 +7,6 @@ public partial class ProfileItemViewModel : ObservableObject
 {
     public string Id { get; init; } = "";
     public string Name { get; set; } = "";
-    public bool IsVanilla { get; init; }
     public bool IsBuiltIn { get; init; }
 
     [ObservableProperty]
@@ -17,7 +16,6 @@ public partial class ProfileItemViewModel : ObservableObject
     {
         Id = profile.Id,
         Name = profile.Name,
-        IsVanilla = profile.IsVanilla,
         IsBuiltIn = profile.IsBuiltIn,
         IsActive = string.Equals(profile.Id, activeId, StringComparison.OrdinalIgnoreCase),
     };

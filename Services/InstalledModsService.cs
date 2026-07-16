@@ -12,8 +12,7 @@ public class InstalledModsService
 
     private readonly LocalModuleParser _parser = new();
     private readonly ModScriptService _scriptService;
-    private string _profileId = GameProfile.VanillaId;
-    private bool _isVanilla = true;
+    private string _profileId = "";
     private string _manifestPath = "";
     private string _modulesRoot = "";
     private string _overlayRoot = "";
@@ -27,22 +26,18 @@ public class InstalledModsService
     {
         _scriptService = scriptService;
         AppPaths.EnsureAppData();
-        UseProfile(GameProfile.VanillaId, isVanilla: true);
     }
 
-    /// <summary>Legacy alias for game Modules path (mount target).</summary>
     public static string GetModsFolder(string gamePath) => AppPaths.GameModulesFolder(gamePath);
 
     public string ActiveProfileId => _profileId;
-    public bool IsVanilla => _isVanilla;
     public string ModulesRoot => _modulesRoot;
 
-    public void UseProfile(string profileId, bool isVanilla)
+    public void UseProfile(string profileId)
     {
         _profileId = profileId;
-        _isVanilla = isVanilla;
 
-        if (isVanilla)
+        if (string.IsNullOrWhiteSpace(profileId))
         {
             _manifestPath = "";
             _modulesRoot = "";
@@ -65,21 +60,10 @@ public class InstalledModsService
 
     public IReadOnlyList<InstalledMod> GetAll() => _manifest.Mods;
 
-    public void Reload() => _manifest = _isVanilla ? new InstalledModsManifest() : LoadManifest();
+    public void Reload() => _manifest = LoadManifest();
 
-    /// <summary>
-    /// Scan the active profile's Modules store (not the game path).
-    /// <paramref name="gamePath"/> is unused for scanning but kept for call-site compatibility;
-    /// validation is based on profile store existence.
-    /// </summary>
     public IReadOnlyList<InstalledMod> ScanAndMerge(string? gamePath = null)
     {
-        if (_isVanilla)
-        {
-            _manifest = new InstalledModsManifest();
-            return [];
-        }
-
         if (string.IsNullOrWhiteSpace(_modulesRoot))
             return [];
 
@@ -98,7 +82,6 @@ public class InstalledModsService
             merged.Add(BuildInstalledMod(parsed, overlay, parsed.IsEnabled));
         }
 
-        // Scripted mods are not rediscoverable by scanning Modules - carry them forward as-is.
         foreach (var scripted in _manifest.Mods.Where(m => m.Kind == LocalModKind.Scripted))
             merged.Add(scripted);
 
@@ -107,13 +90,9 @@ public class InstalledModsService
         return merged;
     }
 
-    /// <summary>
-    /// Insert or replace a script-installed mod entry (matched by RemoteId then Title).
-    /// Called by <see cref="ModDownloadService"/> after a scripted install completes.
-    /// </summary>
     public void UpsertScripted(InstalledMod entry)
     {
-        if (_isVanilla)
+        if (string.IsNullOrWhiteSpace(_manifestPath))
             return;
 
         var existing = _manifest.Mods.FirstOrDefault(m =>
@@ -130,7 +109,7 @@ public class InstalledModsService
 
     public bool Remove(string relativePath, string? gamePath = null)
     {
-        if (_isVanilla)
+        if (string.IsNullOrWhiteSpace(_manifestPath))
             return false;
 
         var mod = _manifest.Mods.FirstOrDefault(m =>
@@ -150,18 +129,16 @@ public class InstalledModsService
         }
         else if (mod.Kind == LocalModKind.Scripted)
         {
-            RemoveScripted(mod, gamePath);
+            UninstallScriptedMod(mod, gamePath);
         }
         else
         {
-            var activePath = DllDisableHelper.GetActivePath(_modulesRoot, mod.RelativePath);
-            var disabledPath = DllDisableHelper.GetDisabledPath(_modulesRoot, mod.RelativePath);
-
-            if (File.Exists(activePath))
-                File.Delete(activePath);
-
-            if (File.Exists(disabledPath))
-                File.Delete(disabledPath);
+            var full = Path.Combine(_modulesRoot, mod.RelativePath);
+            if (File.Exists(full))
+                File.Delete(full);
+            var disabled = DllDisableHelper.GetDisabledPath(_modulesRoot, mod.RelativePath);
+            if (File.Exists(disabled))
+                File.Delete(disabled);
         }
 
         _manifest.Mods.Remove(mod);
@@ -169,113 +146,14 @@ public class InstalledModsService
         return true;
     }
 
-    /// <summary>
-    /// Uninstall a scripted mod: run the developer's uninstall script (handles side-effects
-    /// outside the overlay), then delete every overlay file the install script created/modified
-    /// (manifest-driven fallback so incomplete uninstall scripts still leave a clean overlay),
-    /// then drop the staging directory.
-    /// </summary>
-    private void RemoveScripted(InstalledMod mod, string? gamePath)
-    {
-        var stagingDir = ResolveStagingDir(mod);
-
-        // 1) Run uninstall script if present (developer handles game-tree-external side-effects).
-        var scriptPath = ModScriptService.FindScript(stagingDir, InstallAction.Uninstall);
-        if (scriptPath is not null && Directory.Exists(_overlayRoot))
-        {
-            var context = new InstallContext
-            {
-                Action = InstallAction.Uninstall,
-                ModId = mod.RemoteId ?? 0,
-                ModTitle = mod.Title,
-                ModVersion = mod.Version ?? "1.0.0",
-                GamePath = gamePath ?? "",
-                OverlayDir = _overlayRoot,
-                StagingDir = stagingDir,
-                GameRunning = GameProcessService.IsRunning(gamePath),
-            };
-            _scriptService.Run(scriptPath, context);
-        }
-
-        // 2) Manifest-driven overlay cleanup - the fallback that guarantees a clean overlay.
-        foreach (var rel in mod.InstalledFiles)
-        {
-            try
-            {
-                var abs = Path.Combine(_overlayRoot, rel.Replace('/', Path.DirectorySeparatorChar));
-                if (File.Exists(abs))
-                {
-                    File.Delete(abs);
-                    TryDeleteEmptyParents(abs, _overlayRoot);
-                }
-            }
-            catch
-            {
-                // Best-effort: locked/missing files are skipped.
-            }
-        }
-
-        // 3) Drop the staging directory (archive + scripts).
-        try
-        {
-            if (Directory.Exists(stagingDir))
-                Directory.Delete(stagingDir, recursive: true);
-        }
-        catch
-        {
-            // Non-fatal: leftover staging is harmless.
-        }
-    }
-
-    private string ResolveStagingDir(InstalledMod mod)
-    {
-        if (!string.IsNullOrWhiteSpace(mod.StagingDir))
-        {
-            var abs = Path.IsPathRooted(mod.StagingDir)
-                ? mod.StagingDir
-                : Path.Combine(_profileRoot, mod.StagingDir);
-            if (Directory.Exists(abs))
-                return abs;
-        }
-        // Fallback to the default per-mod staging layout.
-        return Path.Combine(_profileRoot, "scripts", (mod.RemoteId?.ToString() ?? mod.Title));
-    }
-
-    private static void TryDeleteEmptyParents(string fileOrDir, string root)
-    {
-        try
-        {
-            var dir = Path.GetDirectoryName(fileOrDir);
-            var fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
-            while (!string.IsNullOrWhiteSpace(dir))
-            {
-                var full = Path.GetFullPath(dir);
-                if (string.Equals(full, fullRoot, StringComparison.OrdinalIgnoreCase))
-                    break;
-                if (!full.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-                    break;
-                if (!Directory.Exists(full) || Directory.EnumerateFileSystemEntries(full).Any())
-                    break;
-                Directory.Delete(full);
-                dir = Path.GetDirectoryName(full);
-            }
-        }
-        catch
-        {
-            // ignore
-        }
-    }
-
     public bool SetEnabled(string relativePath, string? gamePath, bool enabled)
     {
         var mod = _manifest.Mods.FirstOrDefault(m =>
             string.Equals(m.RelativePath, relativePath, StringComparison.OrdinalIgnoreCase));
 
-        if (mod is null || _isVanilla)
+        if (mod is null || string.IsNullOrWhiteSpace(_manifestPath))
             return false;
 
-        // Scripted mods are managed by their install/uninstall scripts; the loader does not
-        // toggle them in place. Reject the toggle so the UI keeps them enabled.
         if (mod.Kind == LocalModKind.Scripted)
             return false;
 
@@ -289,7 +167,7 @@ public class InstalledModsService
 
     public bool SetEnabledMany(IEnumerable<string> relativePaths, string? gamePath, bool enabled)
     {
-        if (_isVanilla)
+        if (string.IsNullOrWhiteSpace(_manifestPath))
             return false;
 
         var paths = relativePaths
@@ -309,7 +187,6 @@ public class InstalledModsService
             if (mod is null)
                 return false;
 
-            // Scripted mods cannot be toggled in place (managed by their scripts).
             if (mod.Kind == LocalModKind.Scripted)
                 return false;
 
@@ -331,7 +208,7 @@ public class InstalledModsService
 
     public void Save()
     {
-        if (_isVanilla || string.IsNullOrWhiteSpace(_manifestPath))
+        if (string.IsNullOrWhiteSpace(_manifestPath))
             return;
 
         var json = JsonSerializer.Serialize(_manifest, JsonOptions);
@@ -396,11 +273,10 @@ public class InstalledModsService
             }
             catch
             {
-                // Best-effort migration; leave remaining files in quarantine.
+                // best effort
             }
         }
 
-        // Legacy global quarantine → current profile
         if (Directory.Exists(AppPaths.LegacyQuarantineDir))
         {
             foreach (var quarantinedPath in Directory.EnumerateFiles(AppPaths.LegacyQuarantineDir, "*.dll", SearchOption.AllDirectories))
@@ -473,6 +349,62 @@ public class InstalledModsService
             parts.Add($"{parsed.Dependencies.Count} dependencies");
 
         return string.Join(" · ", parts);
+    }
+
+    private void UninstallScriptedMod(InstalledMod mod, string? gamePath)
+    {
+        if (!string.IsNullOrWhiteSpace(mod.StagingDir) && !string.IsNullOrWhiteSpace(_profileRoot))
+        {
+            var stagingDir = Path.Combine(_profileRoot, mod.StagingDir);
+            var uninstallScript = ModScriptService.FindScript(stagingDir, InstallAction.Uninstall);
+            if (uninstallScript is not null
+                && !string.IsNullOrWhiteSpace(gamePath)
+                && !string.IsNullOrWhiteSpace(_overlayRoot))
+            {
+                var ctx = new InstallContext
+                {
+                    Action = InstallAction.Uninstall,
+                    ModId = mod.RemoteId ?? 0,
+                    ModTitle = mod.Title,
+                    ModVersion = mod.Version ?? "1.0.0",
+                    GamePath = gamePath,
+                    OverlayDir = _overlayRoot,
+                    StagingDir = stagingDir,
+                    GameRunning = GameProcessService.IsRunning(gamePath),
+                };
+                _scriptService.Run(uninstallScript, ctx);
+            }
+
+            try
+            {
+                if (Directory.Exists(stagingDir))
+                    Directory.Delete(stagingDir, recursive: true);
+            }
+            catch
+            {
+                // best effort
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(_overlayRoot))
+        {
+            foreach (var rel in mod.InstalledFiles)
+            {
+                if (string.IsNullOrWhiteSpace(rel))
+                    continue;
+
+                var full = Path.Combine(_overlayRoot, rel.Replace('/', Path.DirectorySeparatorChar));
+                try
+                {
+                    if (File.Exists(full))
+                        File.Delete(full);
+                }
+                catch
+                {
+                    // best effort
+                }
+            }
+        }
     }
 
     private InstalledModsManifest LoadManifest()

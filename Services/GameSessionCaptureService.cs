@@ -6,7 +6,7 @@ namespace UnturnedModLoader.Services;
 
 /// <summary>
 /// Captures filesystem writes under the game install while the game is running,
-/// then absorbs them into the active profile overlay + journal so Vanilla can fully undo.
+/// then absorbs them into the active profile overlay + journal (game + profile changes).
 /// Owned roots (Modules/BepInEx via junction) already write into the profile store;
 /// this covers sparse new/modified paths the loader did not stage up front.
 /// </summary>
@@ -43,7 +43,7 @@ public sealed class GameSessionCaptureService : IDisposable
         }
     }
 
-    /// <summary>Begin watching. No-op for vanilla or invalid path.</summary>
+    /// <summary>Begin watching. No-op for invalid path.</summary>
     public void Start(string profileId, string gamePath)
     {
         lock (_gate)
@@ -54,9 +54,6 @@ public sealed class GameSessionCaptureService : IDisposable
             _profileId = null;
             _gamePath = null;
             _active = false;
-
-            if (string.Equals(profileId, GameProfile.VanillaId, StringComparison.OrdinalIgnoreCase))
-                return;
 
             if (!GamePathValidator.IsValid(gamePath))
                 return;

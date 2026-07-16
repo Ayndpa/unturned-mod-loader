@@ -31,9 +31,9 @@ public partial class App : Application
             ThemeService.Initialize(settings);
 
             var overlayService = new GameOverlayService();
-            settingsService.MigrateIfNeeded(settings, overlayService);
-
             var profileService = new ProfileService(settingsService, settings, overlayService);
+            settingsService.MigrateIfNeeded(settings, overlayService, profileService);
+            profileService.EnsureAtLeastOneProfile();
             profileService.SyncActiveMounts();
 
             if (!settings.OnboardingCompleted)
@@ -105,7 +105,7 @@ public partial class App : Application
         var scriptService = new ModScriptService();
         var installedModsService = new InstalledModsService(scriptService);
         var active = profileService.GetActive();
-        installedModsService.UseProfile(active.Id, active.IsVanilla);
+        installedModsService.UseProfile(active.Id);
         var sessionCapture = new GameSessionCaptureService(overlayService);
         var downloadService = new ModDownloadService(scriptService, installedModsService);
 

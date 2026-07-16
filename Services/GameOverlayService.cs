@@ -6,7 +6,7 @@ namespace UnturnedModLoader.Services;
 /// <summary>
 /// Applies a profile's <c>overlay\</c> tree onto the game install with full journaled rollback.
 /// Owned roots (Modules, BepInEx, …) use directory junctions; other paths use copy + originals backup.
-/// Switching to Vanilla unapplies everything the loader recorded — game dir isolation.
+/// Each profile is game install + overlay changes (virtual tree); switching profiles remounts the active overlay.
 /// </summary>
 public sealed class GameOverlayService
 {
@@ -15,13 +15,10 @@ public sealed class GameOverlayService
     private readonly ProfileMountService _junctions = new();
 
     public MountResult EnsureApplied(GameProfile profile, string gamePath) =>
-        profile.IsVanilla ? UnapplyAll(gamePath) : Apply(profile, gamePath);
+        Apply(profile, gamePath);
 
     public MountResult Apply(GameProfile profile, string gamePath)
     {
-        if (profile.IsVanilla)
-            return UnapplyAll(gamePath);
-
         if (!OperatingSystem.IsWindows())
             return MountResult.Fail("Profile overlays require Windows.");
 
@@ -216,9 +213,6 @@ public sealed class GameOverlayService
     /// <summary>Stage a file into the profile overlay (relative to game root). Does not apply live.</summary>
     public void StageFile(string profileId, string gameRelativePath, Stream content)
     {
-        if (string.Equals(profileId, GameProfile.VanillaId, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Cannot stage files into the vanilla profile.");
-
         AppPaths.EnsureProfileLayout(profileId);
         var rel = NormalizeRelative(gameRelativePath);
         var dest = Path.Combine(AppPaths.ProfileOverlayDir(profileId), rel);
@@ -237,9 +231,6 @@ public sealed class GameOverlayService
     /// <summary>Copy an existing file/directory into the profile overlay under a game-relative path.</summary>
     public void StagePath(string profileId, string gameRelativePath, string sourcePath)
     {
-        if (string.Equals(profileId, GameProfile.VanillaId, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Cannot stage files into the vanilla profile.");
-
         AppPaths.EnsureProfileLayout(profileId);
         var rel = NormalizeRelative(gameRelativePath);
         var dest = Path.Combine(AppPaths.ProfileOverlayDir(profileId), rel);
@@ -272,9 +263,6 @@ public sealed class GameOverlayService
         string gamePath,
         IReadOnlyDictionary<string, BaselineEntry> baseline)
     {
-        if (string.Equals(profileId, GameProfile.VanillaId, StringComparison.OrdinalIgnoreCase))
-            return CaptureResult.Empty;
-
         if (!GamePathValidator.IsValid(gamePath))
             return CaptureResult.Failed("Game path is not valid.");
 

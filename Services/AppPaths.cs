@@ -55,8 +55,8 @@ public static class AppPaths
 
     public static void EnsureProfileLayout(string profileId)
     {
-        if (string.Equals(profileId, Models.GameProfile.VanillaId, StringComparison.OrdinalIgnoreCase))
-            return;
+        if (string.IsNullOrWhiteSpace(profileId))
+            throw new ArgumentException("Profile id is required.", nameof(profileId));
 
         Directory.CreateDirectory(ProfileDir(profileId));
         Directory.CreateDirectory(ProfileOverlayDir(profileId));
