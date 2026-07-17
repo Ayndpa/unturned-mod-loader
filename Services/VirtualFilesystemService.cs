@@ -26,6 +26,42 @@ public sealed class VirtualFilesystemService : IDisposable
 {
     private const ulong AllocationUnit = 4096;
 
+    /// <summary>
+    /// Maximum legal Win32 FILETIME (9999-12-31 23:59:59 UTC). Values outside
+    /// [0, MaxFileTime] make <see cref="DateTime.FromFileTimeUtc"/> throw
+    /// ArgumentOutOfRangeException, crashing callers like the BepInEx preloader that
+    /// read a file's LastWriteTime. Clamp anything out of range to 0 ("unknown").
+    /// </summary>
+    private const ulong MaxFileTime = 265046774399999999;
+
+    private static ulong ToFileTimeSafe(DateTime time)
+    {
+        if (time.Kind == DateTimeKind.Local)
+            time = time.ToUniversalTime();
+
+        // ToFileTimeUtc throws on dates before 1601-01-01 (e.g. DateTime(0)); treat those
+        // as "no time" rather than propagating an exception up through WinFsp.
+        if (time.Year < 1601)
+            return 0;
+
+        try
+        {
+            var ft = (ulong)time.ToFileTimeUtc();
+            return ft > MaxFileTime ? 0 : ft;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// Clamp a raw FILETIME (e.g. from <see cref="GetFileInformationByHandle"/>) into the
+    /// legal [0, MaxFileTime] range so consumers cannot blow up on FromFileTimeUtc.
+    /// </summary>
+    private static ulong ClampFileTime(ulong fileTime) =>
+        fileTime == 0 || fileTime > MaxFileTime ? 0 : fileTime;
+
     private readonly OverlayFilesystem _fs = new();
     private FileSystemHost? _host;
     private char _driveLetter;
@@ -185,10 +221,10 @@ public sealed class VirtualFilesystemService : IDisposable
                 fileInfo.FileSize = (ulong)Stream.Length;
                 fileInfo.AllocationSize = (fileInfo.FileSize + AllocationUnit - 1)
                     / AllocationUnit * AllocationUnit;
-                fileInfo.CreationTime = info.ftCreationTime;
-                fileInfo.LastAccessTime = info.ftLastAccessTime;
-                fileInfo.LastWriteTime = info.ftLastWriteTime;
-                fileInfo.ChangeTime = info.ftLastWriteTime;
+                fileInfo.CreationTime = ClampFileTime(info.ftCreationTime);
+                fileInfo.LastAccessTime = ClampFileTime(info.ftLastAccessTime);
+                fileInfo.LastWriteTime = ClampFileTime(info.ftLastWriteTime);
+                fileInfo.ChangeTime = fileInfo.LastWriteTime;
                 fileInfo.IndexNumber = 0;
                 fileInfo.HardLinks = 0;
                 return 0;
@@ -206,9 +242,9 @@ public sealed class VirtualFilesystemService : IDisposable
             fileInfo.FileSize = info is System.IO.FileInfo f ? (ulong)f.Length : 0;
             fileInfo.AllocationSize = (fileInfo.FileSize + AllocationUnit - 1)
                 / AllocationUnit * AllocationUnit;
-            fileInfo.CreationTime = (ulong)info.CreationTimeUtc.ToFileTimeUtc();
-            fileInfo.LastAccessTime = (ulong)info.LastAccessTimeUtc.ToFileTimeUtc();
-            fileInfo.LastWriteTime = (ulong)info.LastWriteTimeUtc.ToFileTimeUtc();
+            fileInfo.CreationTime = ToFileTimeSafe(info.CreationTimeUtc);
+            fileInfo.LastAccessTime = ToFileTimeSafe(info.LastAccessTimeUtc);
+            fileInfo.LastWriteTime = ToFileTimeSafe(info.LastWriteTimeUtc);
             fileInfo.ChangeTime = fileInfo.LastWriteTime;
             fileInfo.IndexNumber = 0;
             fileInfo.HardLinks = 0;
