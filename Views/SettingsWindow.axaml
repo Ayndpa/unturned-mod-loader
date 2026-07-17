@@ -14,7 +14,7 @@
         Title="{c:I18n {x:Static i18n:Settings.Title}}"
         Width="680" Height="520"
         MinWidth="600" MinHeight="480"
-        CanResize="False"
+        CanResize="True"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BgCanvasBrush}">
 
@@ -24,7 +24,7 @@
             BorderThickness="1"
             CornerRadius="12"
             Padding="24,20">
-        <Grid RowDefinitions="Auto,*,Auto">
+        <Grid RowDefinitions="Auto,*">
 
             <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,16">
                 <StackPanel Orientation="Horizontal" Spacing="10">
@@ -43,13 +43,6 @@
                                Foreground="{StaticResource InkBrush}"
                                VerticalAlignment="Center" />
                 </StackPanel>
-                <Button Grid.Column="1"
-                        Classes="icon"
-                        HorizontalAlignment="Right"
-                        Command="{Binding CloseCommand}"
-                        ToolTip.Tip="{c:I18n {x:Static i18n:Common.Close}}">
-                    <LucideIcon Kind="X" Size="18" />
-                </Button>
             </Grid>
 
             <Grid Grid.Row="1" ColumnDefinitions="148,*">
@@ -600,17 +593,6 @@
                     </ScrollViewer>
                 </Border>
             </Grid>
-
-            <StackPanel Grid.Row="2"
-                        Orientation="Horizontal"
-                        HorizontalAlignment="Right"
-                        Spacing="8"
-                        Margin="0,16,0,0">
-                <Button Content="{c:I18n {x:Static i18n:Common.Close}}"
-                        Classes="primary"
-                        Command="{Binding CloseCommand}"
-                        Padding="20,8" />
-            </StackPanel>
         </Grid>
     </Border>
 </Window>
