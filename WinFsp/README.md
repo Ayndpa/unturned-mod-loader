@@ -14,7 +14,7 @@
 | 脚本 | 说明 |
 |------|------|
 | `Check-WinFsp.ps1` | 检测安装状态，成功输出 `INSTALLED` 或 `INSTALLED:版本` |
-| `Install-WinFsp.ps1` | 需管理员；优先使用本目录 `winfsp-*.msi`，否则从 GitHub 下载后静默安装 |
+| `Install-WinFsp.ps1` | 需管理员；优先本目录/缓存中的 `winfsp-*.msi`，否则从 GitHub **正式版 + Pre-release** 解析与 `winfsp.net` 匹配的 MSI（当前 `2.2.26194`）后静默安装；成功后自动关闭窗口 |
 
 ### 离线安装
 

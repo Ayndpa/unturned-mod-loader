@@ -2,11 +2,20 @@
 <#
   Install WinFsp (user-mode file system). Requires administrator.
   Uses winfsp-*.msi in this folder or cache\, else downloads from GitHub.
+
+  Version selection:
+    - Prefer the MSI that matches the managed winfsp.net package (2.2.26194).
+    - Scans BOTH stable and pre-release GitHub releases (latest alone skips betas).
+    - Falls back to a pinned 2.2.26194 URL if the API is unreachable.
+
   -Mirror selects the download source (the C# app has already speed-tested it).
+  -KeepOpen keeps the elevated PowerShell window open after a successful install
+  (errors always wait for Enter so the user can read the message).
 #>
 [CmdletBinding()]
 param(
     [switch]$SkipDownload,
+    [switch]$KeepOpen,
     [ValidateSet('Direct','GhProxyCom','GhProxyOrg','V4GhProxyOrg','V6GhProxyOrg','CdnGhProxyOrg')]
     [string]$Mirror = 'Direct'
 )
@@ -15,6 +24,11 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = $PSScriptRoot
 $CheckScript = Join-Path $ScriptDir 'Check-WinFsp.ps1'
 $CacheDir = Join-Path $ScriptDir 'cache'
+
+# Keep in sync with winfsp.net NuGet package / WinFspMirrorService.RequiredNativeVersion.
+$RequiredNativeVersion = '2.2.26194'
+$PinnedMsiName = "winfsp-$RequiredNativeVersion.msi"
+$PinnedMsiUrl  = "https://github.com/winfsp/winfsp/releases/download/v2.2B3/$PinnedMsiName"
 
 function Test-IsAdministrator {
     $id = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -27,6 +41,17 @@ function Wait-InteractiveExit {
         Write-Host ''
         Read-Host 'Press Enter to close'
     }
+}
+
+function Exit-WithOptionalPause {
+    param(
+        [int]$Code,
+        [switch]$ForcePause
+    )
+    if ($ForcePause -or $KeepOpen -or $Code -ne 0) {
+        Wait-InteractiveExit
+    }
+    exit $Code
 }
 
 function Invoke-CheckScript {
@@ -57,52 +82,110 @@ function Get-MirroredUrl {
 }
 
 function Get-DownloadableMsiUrl {
-    # Returns the raw github.com release URL of the latest winfsp-*.msi.
-    # Falls back to a pinned release if the GitHub API is unavailable.
+    # Scan stable + pre-release releases; prefer MSI matching $RequiredNativeVersion.
     try {
-        $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/winfsp/winfsp/releases/latest' `
-            -Headers @{ 'User-Agent' = 'UnturnedModLoader' } -TimeoutSec 90
-        $asset = $release.assets | Where-Object {
-            $_.name -match '^winfsp-[\d.]+\.msi$' -and $_.name -notmatch 'debug'
-        } | Select-Object -First 1
-        if ($asset) {
-            return [pscustomobject]@{ Url = $asset.browser_download_url; Name = $asset.name }
+        $releases = Invoke-RestMethod -Uri 'https://api.github.com/repos/winfsp/winfsp/releases?per_page=20' `
+            -Headers @{
+                'User-Agent' = 'UnturnedModLoader'
+                'Accept'     = 'application/vnd.github+json'
+            } -TimeoutSec 90
+
+        $exact = $null
+        $newest = $null
+        $newestVer = $null
+
+        foreach ($release in $releases) {
+            if ($release.draft) { continue }
+
+            foreach ($asset in @($release.assets)) {
+                if ($asset.name -notmatch '^winfsp-(\d+\.\d+\.\d+)\.msi$') { continue }
+                if ($asset.name -match 'debug') { continue }
+
+                $verText = $Matches[1]
+                $url = $asset.browser_download_url
+                if (-not $url) { continue }
+
+                if ($verText -eq $RequiredNativeVersion) {
+                    $exact = [pscustomobject]@{ Url = $url; Name = $asset.name }
+                }
+
+                try {
+                    $ver = [version]$verText
+                    if ($null -eq $newestVer -or $ver -gt $newestVer) {
+                        $newestVer = $ver
+                        $newest = [pscustomobject]@{ Url = $url; Name = $asset.name }
+                    }
+                }
+                catch {
+                    # ignore unparsable version strings
+                }
+            }
+        }
+
+        if ($exact) {
+            Write-Host "Resolved matched WinFsp MSI: $($exact.Name)" -ForegroundColor DarkGray
+            return $exact
+        }
+        if ($newest) {
+            Write-Host "Resolved newest WinFsp MSI: $($newest.Name)" -ForegroundColor DarkGray
+            return $newest
         }
     }
     catch {
         Write-Host "GitHub API unavailable: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 
+    Write-Host "Using pinned WinFsp MSI: $PinnedMsiName" -ForegroundColor Yellow
     return [pscustomobject]@{
-        Url  = 'https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi'
-        Name = 'winfsp-2.1.25156.msi'
+        Url  = $PinnedMsiUrl
+        Name = $PinnedMsiName
     }
+}
+
+function Select-PreferredLocalMsi {
+    param([System.IO.FileInfo[]]$Candidates)
+    if (-not $Candidates -or $Candidates.Count -eq 0) { return $null }
+
+    $requiredName = $PinnedMsiName
+    $match = $Candidates | Where-Object { $_.Name -ieq $requiredName } | Select-Object -First 1
+    if ($match) { return $match }
+
+    # Prefer highest winfsp-x.y.z.msi by version, not just newest file timestamp.
+    $ranked = foreach ($f in $Candidates) {
+        if ($f.Name -match '^winfsp-(\d+\.\d+\.\d+)\.msi$') {
+            [pscustomobject]@{ File = $f; Ver = [version]$Matches[1] }
+        }
+    }
+    if ($ranked) {
+        return ($ranked | Sort-Object Ver -Descending | Select-Object -First 1).File
+    }
+
+    return ($Candidates | Sort-Object LastWriteTime -Descending | Select-Object -First 1)
 }
 
 try {
     if (-not (Test-IsAdministrator)) {
         Write-Host 'Administrator rights required. Use Mod Loader one-click install (UAC) or run this script as admin.' -ForegroundColor Red
-        Wait-InteractiveExit
-        exit 1
+        Exit-WithOptionalPause -Code 1 -ForcePause
     }
 
     $checkExit = Invoke-CheckScript
     if ($checkExit -eq 0) {
         Write-Host 'WinFsp is already installed.' -ForegroundColor Green
         Invoke-CheckScript | Out-Null
-        Wait-InteractiveExit
-        exit 0
+        Exit-WithOptionalPause -Code 0
     }
 
-    $msi = Get-ChildItem -Path $ScriptDir -Filter 'winfsp-*.msi' -File -ErrorAction SilentlyContinue |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
-
-    if (-not $msi) {
-        $msi = Get-ChildItem -Path $CacheDir -Filter 'winfsp-*.msi' -File -ErrorAction SilentlyContinue |
-            Sort-Object LastWriteTime -Descending |
-            Select-Object -First 1
+    $localCandidates = @(
+        Get-ChildItem -Path $ScriptDir -Filter 'winfsp-*.msi' -File -ErrorAction SilentlyContinue
+    )
+    if (Test-Path -LiteralPath $CacheDir) {
+        $localCandidates += @(
+            Get-ChildItem -Path $CacheDir -Filter 'winfsp-*.msi' -File -ErrorAction SilentlyContinue
+        )
     }
+
+    $msi = Select-PreferredLocalMsi -Candidates $localCandidates
 
     if (-not $msi -and -not $SkipDownload) {
         Write-Host 'No local MSI; downloading WinFsp...' -ForegroundColor Cyan
@@ -125,8 +208,7 @@ try {
 
     if (-not $msi) {
         Write-Host "Place winfsp-*.msi in: $ScriptDir or $CacheDir" -ForegroundColor Red
-        Wait-InteractiveExit
-        exit 1
+        Exit-WithOptionalPause -Code 1 -ForcePause
     }
 
     Write-Host "Installing: $($msi.FullName)" -ForegroundColor Cyan
@@ -144,17 +226,15 @@ try {
         if ($proc.ExitCode -eq 1618) { $hint = ' (another installer running)' }
         Write-Host "msiexec failed, exit $($proc.ExitCode)$hint" -ForegroundColor Red
         Write-Host "Log: $log" -ForegroundColor Yellow
-        Wait-InteractiveExit
-        exit $proc.ExitCode
+        Exit-WithOptionalPause -Code $proc.ExitCode -ForcePause
     }
 
     Write-Host 'WinFsp install finished.' -ForegroundColor Green
     Invoke-CheckScript | Out-Null
-    Wait-InteractiveExit
-    exit 0
+    # Success: close the elevated window automatically unless -KeepOpen was passed.
+    Exit-WithOptionalPause -Code 0
 }
 catch {
     Write-Host "Install failed: $($_.Exception.Message)" -ForegroundColor Red
-    Wait-InteractiveExit
-    exit 1
+    Exit-WithOptionalPause -Code 1 -ForcePause
 }

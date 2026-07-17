@@ -59,8 +59,8 @@ public static class WinFspService
         if (ps is null)
             return (false, "PowerShell not found");
 
-        // -NoExit keeps the elevated window open if the script errors before Read-Host.
-        var arg = $"-NoProfile -ExecutionPolicy Bypass -NoExit -File \"{InstallScriptPath}\" -Mirror {mirror}";
+        // Do not use -NoExit: the script pauses on failure itself and auto-closes on success.
+        var arg = $"-NoProfile -ExecutionPolicy Bypass -File \"{InstallScriptPath}\" -Mirror {mirror}";
         try
         {
             Process.Start(new ProcessStartInfo

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace UnturnedModLoader.Services.WinFsp;
 
@@ -30,8 +31,20 @@ public sealed record MirrorProbe(WinFspMirror Mirror, int LatencyMs, bool TimedO
 public static class WinFspMirrorService
 {
     private const int ProbeTimeoutMs = 4000;
-    private const string WinFspReleasesApi = "https://api.github.com/repos/winfsp/winfsp/releases/latest";
-    private const string FallbackMsiUrl = "https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi";
+
+    /// <summary>
+    /// Must match the <c>winfsp.net</c> NuGet package version so the native MSI pairs with
+    /// the managed assembly (CheckVersion compares major.minor of both).
+    /// </summary>
+    public const string RequiredNativeVersion = "2.2.26194";
+
+    private const string ReleasesApi = "https://api.github.com/repos/winfsp/winfsp/releases?per_page=20";
+    private const string FallbackMsiUrl =
+        "https://github.com/winfsp/winfsp/releases/download/v2.2B3/winfsp-2.2.26194.msi";
+
+    private static readonly Regex MsiNameRegex = new(
+        @"^winfsp-(\d+\.\d+\.\d+)\.msi$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     /// <summary>Mirror order matches the web client PROXY_OPTIONS.</summary>
     public static IReadOnlyList<WinFspMirror> All { get; } =
@@ -66,15 +79,16 @@ public static class WinFspMirrorService
         GetPrefix(mirror) + rawGithubUrl;
 
     /// <summary>
-    /// Resolves the latest winfsp-*.msi <c>browser_download_url</c> from the GitHub releases
-    /// API, falling back to a pinned URL if the API is unreachable. Returns a raw
-    /// <c>github.com/...</c> URL (un-mirrored) so callers can probe every mirror against it.
+    /// Resolves a winfsp-*.msi <c>browser_download_url</c> from GitHub releases (including
+    /// pre-releases). Prefers an MSI whose version matches <see cref="RequiredNativeVersion"/>
+    /// (the managed <c>winfsp.net</c> package), then the newest 2.x MSI overall. Falls back to
+    /// a pinned URL if the API is unreachable.
     /// </summary>
     public static async Task<string> ResolveMsiAssetUrlAsync(CancellationToken ct = default)
     {
         try
         {
-            using var req = new HttpRequestMessage(HttpMethod.Get, WinFspReleasesApi);
+            using var req = new HttpRequestMessage(HttpMethod.Get, ReleasesApi);
             req.Headers.UserAgent.ParseAdd("UnturnedModLoader");
             req.Headers.Accept.ParseAdd("application/vnd.github+json");
 
@@ -83,28 +97,8 @@ public static class WinFspMirrorService
             {
                 await using var stream = await resp.Content.ReadAsStreamAsync(ct);
                 var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
-                if (doc.RootElement.TryGetProperty("assets", out var assets))
-                {
-                    foreach (var asset in assets.EnumerateArray())
-                    {
-                        if (!asset.TryGetProperty("name", out var nameProp))
-                            continue;
-                        var name = nameProp.GetString();
-                        if (string.IsNullOrEmpty(name))
-                            continue;
-
-                        // Match the script's filter: winfsp-<version>.msi, skip debug builds.
-                        if (name.StartsWith("winfsp-", StringComparison.OrdinalIgnoreCase)
-                            && name.EndsWith(".msi", StringComparison.OrdinalIgnoreCase)
-                            && !name.Contains("debug", StringComparison.OrdinalIgnoreCase)
-                            && asset.TryGetProperty("browser_download_url", out var urlProp))
-                        {
-                            var url = urlProp.GetString();
-                            if (!string.IsNullOrWhiteSpace(url))
-                                return url;
-                        }
-                    }
-                }
+                if (TryPickMsiFromReleases(doc.RootElement, out var url) && !string.IsNullOrWhiteSpace(url))
+                    return url;
             }
         }
         catch
@@ -113,6 +107,66 @@ public static class WinFspMirrorService
         }
 
         return FallbackMsiUrl;
+    }
+
+    /// <summary>
+    /// Scan a GitHub <c>/releases</c> JSON array (stable + pre-release) and pick the best MSI.
+    /// </summary>
+    internal static bool TryPickMsiFromReleases(JsonElement releases, out string? url)
+    {
+        url = null;
+        string? exactMatch = null;
+        string? newestAny = null;
+        Version? newestVer = null;
+
+        if (releases.ValueKind != JsonValueKind.Array)
+            return false;
+
+        foreach (var release in releases.EnumerateArray())
+        {
+            // Skip drafts; pre-releases are intentionally included so 2.2 betas are visible.
+            if (release.TryGetProperty("draft", out var draft) && draft.ValueKind == JsonValueKind.True)
+                continue;
+
+            if (!release.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+                continue;
+
+            foreach (var asset in assets.EnumerateArray())
+            {
+                if (!asset.TryGetProperty("name", out var nameProp))
+                    continue;
+                var name = nameProp.GetString();
+                if (string.IsNullOrEmpty(name))
+                    continue;
+                if (name.Contains("debug", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var match = MsiNameRegex.Match(name);
+                if (!match.Success)
+                    continue;
+                if (!asset.TryGetProperty("browser_download_url", out var urlProp))
+                    continue;
+                var assetUrl = urlProp.GetString();
+                if (string.IsNullOrWhiteSpace(assetUrl))
+                    continue;
+
+                var verText = match.Groups[1].Value;
+                if (string.Equals(verText, RequiredNativeVersion, StringComparison.OrdinalIgnoreCase))
+                    exactMatch = assetUrl;
+
+                if (Version.TryParse(verText, out var ver))
+                {
+                    if (newestVer is null || ver > newestVer)
+                    {
+                        newestVer = ver;
+                        newestAny = assetUrl;
+                    }
+                }
+            }
+        }
+
+        url = exactMatch ?? newestAny;
+        return url is not null;
     }
 
     /// <summary>
