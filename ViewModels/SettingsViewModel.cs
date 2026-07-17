@@ -3,12 +3,14 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using UnturnedModLoader.Services.Api;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using UnturnedModLoader.I18n;
 using UnturnedModLoader.Models;
 using UnturnedModLoader.Services;
+using UnturnedModLoader.Services.WinFsp;
 using UnturnedModLoader.Views;
 
 namespace UnturnedModLoader.ViewModels;
@@ -77,6 +79,9 @@ public partial class SettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _canInstallWinFsp;
+
+    [ObservableProperty]
+    private bool _isWinFspInstalling;
 
     [ObservableProperty]
     private string _winFspActionStatus = "";
@@ -244,7 +249,7 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private async Task RefreshWinFspStatusAsync()
     {
-        if (IsWinFspChecking)
+        if (IsWinFspChecking || IsWinFspInstalling)
             return;
 
         IsWinFspChecking = true;
@@ -261,8 +266,11 @@ public partial class SettingsViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void InstallWinFsp()
+    private async Task InstallWinFspAsync()
     {
+        if (IsWinFspInstalling)
+            return;
+
         WinFspActionStatus = "";
 
         if (!OperatingSystem.IsWindows())
@@ -271,28 +279,73 @@ public partial class SettingsViewModel : ViewModelBase
             return;
         }
 
-        if (!WinFspService.IsScriptBundlePresent())
-        {
-            WinFspActionStatus = L.Get(WinFspKeys.BundleMissing);
-            return;
-        }
+        IsWinFspInstalling = true;
+        CanInstallWinFsp = false;
+        WinFspActionStatus = L.Get(WinFspKeys.InstallStarted);
 
-        var (started, message) = WinFspService.StartElevatedInstall(MirrorPicker.SelectedMirror);
-        if (!started)
+        try
         {
-            if (message.Contains("canceled", StringComparison.OrdinalIgnoreCase)
-                || message.Contains("cancelled", StringComparison.OrdinalIgnoreCase)
-                || message.Contains("1223", StringComparison.Ordinal))
+            var progress = new Progress<WinFspInstallProgress>(p =>
             {
-                WinFspActionStatus = L.Get(WinFspKeys.UacCancelled);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    WinFspActionStatus = p.Phase switch
+                    {
+                        WinFspInstallPhase.Downloading => string.IsNullOrWhiteSpace(p.Message)
+                            ? L.Get(WinFspKeys.Downloading)
+                            : p.Message,
+                        WinFspInstallPhase.Uninstalling => L.Get(WinFspKeys.Uninstalling),
+                        WinFspInstallPhase.Installing => L.Get(WinFspKeys.Installing),
+                        WinFspInstallPhase.Remounting => L.Get(WinFspKeys.Remounting),
+                        _ => string.IsNullOrWhiteSpace(p.Message) ? WinFspActionStatus : p.Message,
+                    };
+                });
+            });
+
+            var result = await WinFspService.InstallOrUpgradeAsync(
+                MirrorPicker.SelectedMirror,
+                progress);
+
+            if (!result.Success)
+            {
+                WinFspActionStatus = string.Equals(result.Message, "UAC_CANCELLED", StringComparison.Ordinal)
+                    ? L.Get(WinFspKeys.UacCancelled)
+                    : L.Get(WinFspKeys.InstallFailed, result.Message);
+                ApplyWinFspStatus(result.Status);
                 return;
             }
 
-            WinFspActionStatus = L.Get(WinFspKeys.InstallFailed, message);
-            return;
-        }
+            ApplyWinFspStatus(result.Status);
+            WinFspActionStatus = L.Get(WinFspKeys.InstallSucceeded);
 
-        WinFspActionStatus = L.Get(WinFspKeys.InstallStarted);
+            WinFspActionStatus = L.Get(WinFspKeys.Remounting);
+            var mount = App.CurrentApp?.TryMountVfs() ?? _vfs.Mount();
+            if (mount.Success)
+            {
+                WinFspActionStatus = L.Get(
+                    WinFspKeys.RemountSucceeded,
+                    _vfs.MountPoint ?? "");
+            }
+            else
+            {
+                WinFspActionStatus = L.Get(
+                    WinFspKeys.RemountFailed,
+                    mount.Error ?? "unknown");
+            }
+
+            RefreshMountStatus();
+        }
+        catch (Exception ex)
+        {
+            WinFspActionStatus = L.Get(WinFspKeys.InstallFailed, ex.GetBaseException().Message);
+            RefreshWinFspStatus();
+        }
+        finally
+        {
+            IsWinFspInstalling = false;
+            if (!IsWinFspInstalled)
+                CanInstallWinFsp = true;
+        }
     }
 
     [RelayCommand]
@@ -521,21 +574,19 @@ public partial class SettingsViewModel : ViewModelBase
 
     private void RefreshWinFspStatus()
     {
-        WinFspActionStatus = "";
+        if (!IsWinFspInstalling)
+            WinFspActionStatus = "";
 
         if (!OperatingSystem.IsWindows())
         {
             IsWinFspInstalled = false;
             CanInstallWinFsp = false;
             WinFspStatusText = L.Get(WinFspKeys.NotApplicable);
+            RefreshMountStatus();
             return;
         }
 
-        var status = WinFspService.IsScriptBundlePresent()
-            ? WinFspService.RefreshFromScript()
-            : WinFspService.GetStatus();
-
-        ApplyWinFspStatus(status);
+        ApplyWinFspStatus(WinFspService.GetStatus());
     }
 
     private void ApplyWinFspStatus(WinFspStatus status)
@@ -550,9 +601,17 @@ public partial class SettingsViewModel : ViewModelBase
                     : $" ({status.Version})";
                 WinFspStatusText = L.Get(WinFspKeys.Installed, suffix);
                 break;
+            case WinFspInstallState.WrongVersion:
+                IsWinFspInstalled = false;
+                CanInstallWinFsp = !IsWinFspInstalling;
+                WinFspStatusText = L.Get(
+                    WinFspKeys.WrongVersion,
+                    status.Version ?? "?",
+                    WinFspMirrorService.RequiredNativeVersion);
+                break;
             case WinFspInstallState.NotInstalled:
                 IsWinFspInstalled = false;
-                CanInstallWinFsp = WinFspService.IsScriptBundlePresent();
+                CanInstallWinFsp = !IsWinFspInstalling;
                 WinFspStatusText = L.Get(WinFspKeys.NotInstalled);
                 break;
             default:

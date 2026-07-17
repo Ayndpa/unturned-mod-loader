@@ -1,32 +1,24 @@
 # WinFsp（Mod Loader 集成）
 
-[WinFsp](https://github.com/winfsp/winfsp) 是 Windows 上的用户态文件系统框架，部分高级挂载/虚拟文件系统场景会依赖它。
+[WinFsp](https://github.com/winfsp/winfsp) 是 Windows 上的用户态文件系统框架。Mod Loader 的虚拟盘依赖它。
 
-## 应用内使用
+## 应用内安装（推荐）
 
-在 **设置 → 游戏目录** 中可：
+在 **设置 → 游戏目录** 或 **首次引导** 中：
 
-- 查看 WinFsp 是否已安装及版本
-- **一键安装**：通过 UAC 提升运行 `Install-WinFsp.ps1`
+1. 测速并选择下载源
+2. 点 **一键安装 / 升级**
+3. 通过 UAC 管理员确认
 
-## 手动脚本
+流程全部在 C# 内完成（不再弹 PowerShell 窗口）：
 
-| 脚本 | 说明 |
-|------|------|
-| `Check-WinFsp.ps1` | 检测安装状态，成功输出 `INSTALLED` 或 `INSTALLED:版本` |
-| `Install-WinFsp.ps1` | 需管理员；优先本目录/缓存中的 `winfsp-*.msi`，否则从 GitHub **正式版 + Pre-release** 解析与 `winfsp.net` 匹配的 MSI（当前 `2.2.26194`）后静默安装；成功后自动关闭窗口 |
+- 多线程分段下载与 `winfsp.net` 匹配的 MSI（当前 `2.2.26194`，含 GitHub Pre-release）
+- 若已安装其他版本，先静默卸载
+- 再静默安装匹配版本
+- 安装成功后自动挂载虚拟盘
 
-### 离线安装
+缓存目录：`%LocalAppData%\UnturnedModLoader\cache\`
 
-将官方发布的 `winfsp-x.x.x.msi` 复制到本目录后，在管理员 PowerShell 中执行：
+## 遗留脚本
 
-```powershell
-.\Install-WinFsp.ps1
-```
-
-### 仅检查
-
-```powershell
-.\Check-WinFsp.ps1
-echo $LASTEXITCODE
-```
+`Check-WinFsp.ps1` / `Install-WinFsp.ps1` 仍可作为离线备用，但 UI 默认路径已改为进程内安装。

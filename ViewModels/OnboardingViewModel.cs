@@ -1,9 +1,11 @@
 using System.Runtime.Versioning;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using UnturnedModLoader.I18n;
 using UnturnedModLoader.Models;
 using UnturnedModLoader.Services;
+using UnturnedModLoader.Services.WinFsp;
 
 namespace UnturnedModLoader.ViewModels;
 
@@ -13,6 +15,7 @@ public partial class OnboardingViewModel : ViewModelBase
     private readonly AppSettings _settings;
     private readonly FolderPickerService _folderPicker;
     private readonly ProfileService _profileService;
+    private readonly VirtualFilesystemService? _vfs;
 
     /// <summary>
     /// Whether a WinFsp step should be shown (Windows only, not already installed).
@@ -47,6 +50,9 @@ public partial class OnboardingViewModel : ViewModelBase
     private bool _canInstallWinFsp;
 
     [ObservableProperty]
+    private bool _isWinFspInstalling;
+
+    [ObservableProperty]
     private string _winFspActionStatus = "";
 
     /// <summary>Download-mirror picker shared with the settings window.</summary>
@@ -78,12 +84,14 @@ public partial class OnboardingViewModel : ViewModelBase
         SettingsService settingsService,
         AppSettings settings,
         FolderPickerService folderPicker,
-        ProfileService profileService)
+        ProfileService profileService,
+        VirtualFilesystemService? vfs = null)
     {
         _settingsService = settingsService;
         _settings = settings;
         _folderPicker = folderPicker;
         _profileService = profileService;
+        _vfs = vfs;
         _gamePath = settings.GamePath;
 
         // Show the WinFsp step on Windows regardless of install state,
@@ -163,7 +171,7 @@ public partial class OnboardingViewModel : ViewModelBase
     [SupportedOSPlatform("windows")]
     private async Task RefreshWinFspStatusAsync()
     {
-        if (IsWinFspChecking)
+        if (IsWinFspChecking || IsWinFspInstalling)
             return;
 
         IsWinFspChecking = true;
@@ -181,8 +189,11 @@ public partial class OnboardingViewModel : ViewModelBase
 
     [RelayCommand]
     [SupportedOSPlatform("windows")]
-    private void InstallWinFsp()
+    private async Task InstallWinFspAsync()
     {
+        if (IsWinFspInstalling)
+            return;
+
         WinFspActionStatus = "";
 
         if (!OperatingSystem.IsWindows())
@@ -191,60 +202,123 @@ public partial class OnboardingViewModel : ViewModelBase
             return;
         }
 
-        if (!WinFspService.IsScriptBundlePresent())
-        {
-            WinFspActionStatus = L.Get(WinFspKeys.BundleMissing);
-            return;
-        }
-
-        var (started, message) = WinFspService.StartElevatedInstall(MirrorPicker.SelectedMirror);
-        if (!started)
-        {
-            WinFspActionStatus = string.IsNullOrWhiteSpace(message)
-                ? L.Get(WinFspKeys.UacCancelled)
-                : L.Get(WinFspKeys.InstallFailed, message);
-            return;
-        }
-
+        IsWinFspInstalling = true;
+        CanInstallWinFsp = false;
         WinFspActionStatus = L.Get(WinFspKeys.InstallStarted);
+
+        try
+        {
+            var progress = new Progress<WinFspInstallProgress>(p =>
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    WinFspActionStatus = p.Phase switch
+                    {
+                        WinFspInstallPhase.Downloading => string.IsNullOrWhiteSpace(p.Message)
+                            ? L.Get(WinFspKeys.Downloading)
+                            : p.Message,
+                        WinFspInstallPhase.Uninstalling => L.Get(WinFspKeys.Uninstalling),
+                        WinFspInstallPhase.Installing => L.Get(WinFspKeys.Installing),
+                        WinFspInstallPhase.Remounting => L.Get(WinFspKeys.Remounting),
+                        _ => string.IsNullOrWhiteSpace(p.Message) ? WinFspActionStatus : p.Message,
+                    };
+                });
+            });
+
+            var result = await WinFspService.InstallOrUpgradeAsync(
+                MirrorPicker.SelectedMirror,
+                progress);
+
+            if (!result.Success)
+            {
+                WinFspActionStatus = string.Equals(result.Message, "UAC_CANCELLED", StringComparison.Ordinal)
+                    ? L.Get(WinFspKeys.UacCancelled)
+                    : L.Get(WinFspKeys.InstallFailed, result.Message);
+                RefreshWinFspStatus();
+                return;
+            }
+
+            ApplyWinFspStatus(result.Status);
+            WinFspActionStatus = L.Get(WinFspKeys.InstallSucceeded);
+
+            // Mount the virtual drive now that the driver is present.
+            WinFspActionStatus = L.Get(WinFspKeys.Remounting);
+            var mount = App.CurrentApp?.TryMountVfs()
+                        ?? (_vfs is not null ? _vfs.Mount() : MountResult.Fail("VFS unavailable"));
+            if (mount.Success)
+            {
+                var point = _vfs?.MountPoint ?? App.CurrentApp?.Vfs?.MountPoint ?? "";
+                WinFspActionStatus = L.Get(WinFspKeys.RemountSucceeded, point);
+            }
+            else
+            {
+                WinFspActionStatus = L.Get(
+                    WinFspKeys.RemountFailed,
+                    mount.Error ?? "unknown");
+            }
+        }
+        catch (Exception ex)
+        {
+            WinFspActionStatus = L.Get(WinFspKeys.InstallFailed, ex.GetBaseException().Message);
+            RefreshWinFspStatus();
+        }
+        finally
+        {
+            IsWinFspInstalling = false;
+            // Re-evaluate CanInstall after install attempt.
+            if (!IsWinFspInstalled)
+                CanInstallWinFsp = true;
+        }
     }
 
     [SupportedOSPlatform("windows")]
     private void RefreshWinFspStatus()
     {
-        WinFspActionStatus = "";
+        if (!IsWinFspInstalling)
+            WinFspActionStatus = "";
 
         if (!OperatingSystem.IsWindows())
         {
             IsWinFspInstalled = false;
-            CanInstallWinFsp  = false;
-            WinFspStatusText  = L.Get(WinFspKeys.NotApplicable);
+            CanInstallWinFsp = false;
+            WinFspStatusText = L.Get(WinFspKeys.NotApplicable);
             return;
         }
 
-        var status = WinFspService.IsScriptBundlePresent()
-            ? WinFspService.RefreshFromScript()
-            : WinFspService.GetStatus();
+        ApplyWinFspStatus(WinFspService.GetStatus());
+    }
 
+    [SupportedOSPlatform("windows")]
+    private void ApplyWinFspStatus(WinFspStatus status)
+    {
         switch (status.State)
         {
             case WinFspInstallState.Installed:
                 IsWinFspInstalled = true;
-                CanInstallWinFsp  = false;
+                CanInstallWinFsp = false;
                 var suffix = status.Version is { } v ? $" ({v})" : "";
-                WinFspStatusText  = L.Get(WinFspKeys.Installed, suffix);
+                WinFspStatusText = L.Get(WinFspKeys.Installed, suffix);
+                break;
+
+            case WinFspInstallState.WrongVersion:
+                IsWinFspInstalled = false;
+                CanInstallWinFsp = !IsWinFspInstalling;
+                WinFspStatusText = L.Get(
+                    WinFspKeys.WrongVersion,
+                    status.Version ?? "?",
+                    WinFspMirrorService.RequiredNativeVersion);
                 break;
 
             case WinFspInstallState.NotInstalled:
                 IsWinFspInstalled = false;
-                CanInstallWinFsp  = WinFspService.IsScriptBundlePresent();
-                WinFspStatusText  = L.Get(WinFspKeys.NotInstalled);
+                CanInstallWinFsp = !IsWinFspInstalling;
+                WinFspStatusText = L.Get(WinFspKeys.NotInstalled);
                 break;
 
             default:
                 IsWinFspInstalled = false;
-                CanInstallWinFsp  = false;
-                WinFspStatusText  = L.Get(WinFspKeys.NotApplicable);
+                CanInstallWinFsp = false;
+                WinFspStatusText = L.Get(WinFspKeys.NotApplicable);
                 break;
         }
     }

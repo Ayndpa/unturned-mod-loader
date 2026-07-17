@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -15,6 +16,13 @@ public partial class App : Application
 {
     private MainViewModel? _mainViewModel;
     private Window? _mainWindow;
+    private VirtualFilesystemService? _vfs;
+    private ProfileService? _profileService;
+
+    /// <summary>Process-wide VFS host, used after WinFsp install to (re)mount the virtual drive.</summary>
+    public static App? CurrentApp => Current as App;
+
+    public VirtualFilesystemService? Vfs => _vfs;
 
     public override void Initialize()
     {
@@ -35,7 +43,9 @@ public partial class App : Application
             ThemeService.Initialize(settings);
 
             var vfs = new VirtualFilesystemService();
+            _vfs = vfs;
             var profileService = new ProfileService(settingsService, settings, vfs);
+            _profileService = profileService;
             settingsService.MigrateIfNeeded(settings, profileService);
             profileService.EnsureAtLeastOneProfile();
             profileService.SyncActiveMounts();
@@ -45,8 +55,7 @@ public partial class App : Application
 
             // Mount the virtual drive for the whole process lifetime (non-fatal on failure).
             // Mount() itself swallows exceptions; keep the call fire-and-forget safe.
-            try { _ = vfs.Mount(); }
-            catch { /* never block UI startup on VFS */ }
+            TryMountVfs();
 
             desktop.ShutdownRequested += (_, _) => vfs.Dispose();
 
@@ -118,6 +127,37 @@ public partial class App : Application
         window.Focus();
     }
 
+    /// <summary>
+    /// Attempt to mount the virtual drive and re-sync the active profile overlay.
+    /// Safe to call after WinFsp is installed mid-session.
+    /// </summary>
+    public MountResult TryMountVfs()
+    {
+        if (_vfs is null)
+            return MountResult.Fail("VFS not initialized.");
+
+        MountResult result;
+        try
+        {
+            result = _vfs.Mount();
+        }
+        catch (Exception ex)
+        {
+            return MountResult.Fail(ex.GetBaseException().Message);
+        }
+
+        try
+        {
+            _profileService?.SyncActiveMounts();
+        }
+        catch
+        {
+            // overlay sync is best-effort
+        }
+
+        return result;
+    }
+
     private void ShowOnboarding(
         IClassicDesktopStyleApplicationLifetime desktop,
         SettingsService settingsService,
@@ -127,10 +167,12 @@ public partial class App : Application
     {
         var onboardingWindow = new OnboardingWindow();
         var folderPicker = new FolderPickerService(onboardingWindow);
-        var viewModel = new OnboardingViewModel(settingsService, settings, folderPicker, profileService);
+        var viewModel = new OnboardingViewModel(settingsService, settings, folderPicker, profileService, vfs);
 
         viewModel.Completed += completedSettings =>
         {
+            // WinFsp may have been installed during the wizard — ensure the drive is up.
+            TryMountVfs();
             profileService.SyncActiveMounts();
             ShowMain(desktop, settingsService, completedSettings, profileService, vfs);
             onboardingWindow.Close();
