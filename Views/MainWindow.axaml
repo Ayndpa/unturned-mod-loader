@@ -136,21 +136,6 @@
                             <TextBlock Text="{c:I18n {x:Static i18n:Main.LaunchGame}}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Border CornerRadius="6"
-                            Padding="8,4"
-                            Background="{StaticResource BgPaperBrush}"
-                            BorderBrush="{StaticResource HairlineBrush}"
-                            BorderThickness="1"
-                            IsVisible="{Binding IsVfsMounted}"
-                            ToolTip.Tip="{Binding VfsMountStatus}">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <LucideIcon Kind="HardDrive" Size="13" Foreground="{StaticResource MidGrayBrush}" />
-                            <TextBlock Text="{Binding VfsMountStatus}"
-                                       FontSize="11"
-                                       Foreground="{StaticResource MidGrayBrush}"
-                                       VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Border>
                 </StackPanel>
             </Grid>
         </Border>
@@ -553,6 +538,21 @@
                             Orientation="Horizontal"
                             Spacing="8"
                             VerticalAlignment="Center">
+                    <Border CornerRadius="6"
+                            Padding="8,4"
+                            Background="{StaticResource BgPaperBrush}"
+                            BorderBrush="{StaticResource HairlineBrush}"
+                            BorderThickness="1"
+                            IsVisible="{Binding IsVfsMounted}"
+                            ToolTip.Tip="{Binding VfsMountStatus}">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <LucideIcon Kind="HardDrive" Size="13" Foreground="{StaticResource MidGrayBrush}" />
+                            <TextBlock Text="{Binding VfsMountStatus}"
+                                       FontSize="11"
+                                       Foreground="{StaticResource MidGrayBrush}"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
                     <LucideIcon Kind="Folder" Size="14" Foreground="{StaticResource MidGrayBrush}" />
                     <TextBlock Text="{Binding GamePath}"
                                FontSize="12"

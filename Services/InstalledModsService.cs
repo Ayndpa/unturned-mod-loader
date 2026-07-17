@@ -81,13 +81,19 @@ public sealed class InstalledModsService
         if (previous is not null)
         {
             var keep = entry.Files.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var stale = new List<string>();
             foreach (var rel in previous.Files)
             {
                 if (string.IsNullOrWhiteSpace(rel) || keep.Contains(rel))
                     continue;
 
                 DeleteOverlayFile(rel);
+                stale.Add(rel);
             }
+
+            // Remove directories left empty by the stale-file deletions, so a version
+            // upgrade does not leave the old layout's empty folders behind.
+            PruneEmptyAncestors(stale);
         }
 
         Directory.CreateDirectory(_manifestsDir);
@@ -111,6 +117,13 @@ public sealed class InstalledModsService
 
         foreach (var rel in mod.Files)
             DeleteOverlayFile(rel);
+
+        // An install records only the files it wrote, never the directories it created
+        // (those come into being as parents of file extraction). Deleting the files
+        // leaves those directories behind; prune the now-empty ones so uninstall is
+        // complete instead of littering the overlay (and the virtual drive) with the
+        // mod's empty folder skeleton.
+        PruneEmptyAncestors(mod.Files);
 
         try { File.Delete(path); }
         catch { /* best effort */ }
@@ -136,6 +149,74 @@ public sealed class InstalledModsService
         catch
         {
             // best effort: a locked file should not block the rest of the uninstall.
+        }
+    }
+
+    /// <summary>
+    /// Removes directories left empty by deleting the given overlay-relative files.
+    /// Walks each file's ancestors deepest-first and deletes a directory only when
+    /// it is empty, stopping at the first non-empty (or missing) ancestor. The
+    /// overlay root itself and the <c>.unmod-manifests</c> directory are never
+    /// removed, even if empty -- they are loader-owned, not part of a mod's layout.
+    /// </summary>
+    private void PruneEmptyAncestors(IEnumerable<string> relativePaths)
+    {
+        if (string.IsNullOrWhiteSpace(_overlayRoot))
+            return;
+
+        var overlayRoot = Path.GetFullPath(_overlayRoot)
+            .TrimEnd(Path.DirectorySeparatorChar);
+        var manifestsRoot = Path.GetFullPath(_manifestsDir)
+            .TrimEnd(Path.DirectorySeparatorChar);
+
+        // Collect each ancestor once; a directory shared by several files is tested once.
+        var ancestors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var rel in relativePaths)
+        {
+            if (string.IsNullOrWhiteSpace(rel))
+                continue;
+
+            var full = Path.GetFullPath(Path.Combine(_overlayRoot,
+                rel.Replace('/', Path.DirectorySeparatorChar)));
+            for (var dir = Path.GetDirectoryName(full);
+                 !string.IsNullOrEmpty(dir);
+                 dir = Path.GetDirectoryName(dir))
+            {
+                // Stop above the overlay: never touch the overlay root or its parents.
+                if (!dir.StartsWith(overlayRoot, StringComparison.OrdinalIgnoreCase))
+                    break;
+
+                if (dir.Equals(manifestsRoot, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                ancestors.Add(dir);
+            }
+        }
+
+        // Deepest first: deleting a leaf may empty its parent, which we then reach next.
+        // Sort by descending path length so a directory is processed after its children.
+        // (Depth correlates with path length here; exact tree order is not required, only
+        // that children precede parents. Enumerable.OrderBy is used explicitly because an
+        // async-extension shim in scope otherwise hijacks overload resolution.)
+        var ordered = System.Linq.Enumerable.OrderBy<string, int>(ancestors, d => d.Length);
+        foreach (var dir in System.Linq.Enumerable.Reverse(ordered))
+        {
+            try
+            {
+                if (!Directory.Exists(dir))
+                    continue;
+
+                // A non-empty directory is shared with another mod (or with copy-up writes
+                // from the live VFS); leave it in place rather than guessing ownership.
+                if (Directory.EnumerateFileSystemEntries(dir).Any())
+                    continue;
+
+                Directory.Delete(dir, recursive: false);
+            }
+            catch
+            {
+                // best effort: a locked/shared directory should not block the rest.
+            }
         }
     }
 
