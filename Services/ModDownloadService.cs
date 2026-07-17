@@ -129,10 +129,17 @@ public sealed class ModDownloadService
         var stagingDir = Path.Combine(baseContext.StagingDir, modId.ToString());
         Directory.CreateDirectory(stagingDir);
 
+        var locale = LocalizationService.CurrentLocaleCode;
+        var modTitle = mod is not null
+            ? LocalizedContent.Pick(mod.Title, locale)
+            : fileName;
+        if (string.IsNullOrWhiteSpace(modTitle))
+            modTitle = fileName;
+
         var context = baseContext with
         {
             ModId = modId,
-            ModTitle = mod?.Title ?? fileName,
+            ModTitle = modTitle,
             ModVersion = mod?.Version ?? "1.0.0",
             StagingDir = stagingDir,
         };
@@ -198,17 +205,27 @@ public sealed class ModDownloadService
         if (_installedMods is null)
             return;
 
+        var locale = LocalizationService.CurrentLocaleCode;
+        var title = mod is not null
+            ? LocalizedContent.Pick(mod.Title, locale)
+            : context.ModTitle;
+        if (string.IsNullOrWhiteSpace(title))
+            title = context.ModTitle;
+        var description = mod is not null
+            ? LocalizedContent.Pick(mod.Description, locale)
+            : null;
+
         var profileRoot = Path.GetDirectoryName(context.OverlayDir)!; // profiles\{id}
         var entry = new InstalledMod
         {
             RemoteId = context.ModId,
             Kind = LocalModKind.Scripted,
-            RelativePath = mod?.Title ?? context.ModTitle,
-            Title = mod?.Title ?? context.ModTitle,
+            RelativePath = title,
+            Title = title,
             Author = mod?.AuthorName,
             Version = mod?.Version,
             Category = mod?.Category,
-            Description = mod?.Description,
+            Description = description,
             CoverUrl = mod?.CoverUrl,
             IsEnabled = true,
             InstalledAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
@@ -233,7 +250,10 @@ public sealed class ModDownloadService
                 continue;
             visited.Add(dep.Id);
 
-            progress?.Invoke($"Downloading dependency: {dep.Title}");
+            var depTitle = LocalizedContent.Pick(dep.Title, LocalizationService.CurrentLocaleCode);
+            if (string.IsNullOrWhiteSpace(depTitle))
+                depTitle = $"#{dep.Id}";
+            progress?.Invoke($"Downloading dependency: {depTitle}");
 
             // Recursively fetch and install transitive dependencies
             var depDetail = await modsApi.GetModAsync(dep.Id, cancellationToken);
@@ -249,7 +269,7 @@ public sealed class ModDownloadService
             // Download and install the dependency itself
             var download = await modsApi.DownloadModFileAsync(dep.Id, cancellationToken);
             if (!download.Success || download.Content is null || string.IsNullOrWhiteSpace(download.FileName))
-                return ModInstallResult.Failed($"Failed to download dependency: {dep.Title}");
+                return ModInstallResult.Failed($"Failed to download dependency: {depTitle}");
 
             try
             {
@@ -258,7 +278,7 @@ public sealed class ModDownloadService
             }
             catch (Exception ex)
             {
-                return ModInstallResult.Failed($"Failed to install dependency {dep.Title}: {ex.Message}");
+                return ModInstallResult.Failed($"Failed to install dependency {depTitle}: {ex.Message}");
             }
         }
 

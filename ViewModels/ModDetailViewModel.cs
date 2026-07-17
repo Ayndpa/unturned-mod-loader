@@ -20,6 +20,7 @@ public partial class ModDetailViewModel : ViewModelBase
     private readonly Window _owner;
     private readonly string _apiBaseUrl;
     private int _downloadCount;
+    private RemoteModDetail? _loadedMod;
 
     public int Id { get; private set; }
     public string Title { get; private set; } = "";
@@ -183,16 +184,18 @@ public partial class ModDetailViewModel : ViewModelBase
 
     private void ApplyMod(RemoteModDetail mod)
     {
+        _loadedMod = mod;
+        var locale = LocalizationService.CurrentLocaleCode;
         Id = mod.Id;
-        Title = mod.Title;
+        Title = LocalizedContent.Pick(mod.Title, locale);
         Author = mod.AuthorName;
         Version = string.IsNullOrWhiteSpace(mod.Version) ? "—" : mod.Version;
         Category = ModCategoryMapper.ToLabel(mod.Category);
-        var markdown = !string.IsNullOrWhiteSpace(mod.Body)
-            ? mod.Body
-            : mod.Description;
+        var body = LocalizedContent.Pick(mod.Body, locale);
+        var description = LocalizedContent.Pick(mod.Description, locale);
+        var markdown = !string.IsNullOrWhiteSpace(body) ? body : description;
         HasDescription = !string.IsNullOrWhiteSpace(markdown);
-        DescriptionMarkdown = markdown ?? "";
+        DescriptionMarkdown = markdown;
         HasFile = mod.HasFile;
         _downloadCount = mod.Downloads;
         DownloadsText = _downloadCount.ToString("N0");
@@ -200,12 +203,12 @@ public partial class ModDetailViewModel : ViewModelBase
         CommentsText = mod.CommentCount.ToString("N0");
         FileSizeText = FormatFileSize(mod.FileSize);
         TagsText = mod.Tags.Count > 0
-            ? string.Join(", ", mod.Tags)
+            ? string.Join(", ", mod.Tags.Select(t => LocalizedContent.Pick(t, locale)).Where(s => !string.IsNullOrWhiteSpace(s)))
             : L.Get(ModDetail.NoTags);
         Dependencies = mod.Dependencies;
         var depCount = Dependencies.Count;
         DependenciesText = depCount > 0
-            ? string.Join(", ", Dependencies.Select(d => d.Title))
+            ? string.Join(", ", Dependencies.Select(d => LocalizedContent.Pick(d.Title, locale)))
             : "";
 
         OnPropertyChanged(nameof(Id));
@@ -286,5 +289,7 @@ public partial class ModDetailViewModel : ViewModelBase
     protected override void OnLocalizationChanged()
     {
         OnPropertyChanged(nameof(DownloadButtonText));
+        if (_loadedMod is not null)
+            ApplyMod(_loadedMod);
     }
 }

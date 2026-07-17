@@ -8,7 +8,7 @@ public class RemoteModDependency
     public int Id { get; set; }
 
     [JsonPropertyName("title")]
-    public string Title { get; set; } = "";
+    public LocalizedString Title { get; set; } = LocalizedString.Empty;
 
     [JsonPropertyName("version")]
     public string? Version { get; set; }

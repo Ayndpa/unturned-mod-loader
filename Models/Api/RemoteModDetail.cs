@@ -5,7 +5,7 @@ namespace UnturnedModLoader.Models.Api;
 public class RemoteModDetail : RemoteMod
 {
     [JsonPropertyName("tags")]
-    public List<string> Tags { get; set; } = [];
+    public List<LocalizedString> Tags { get; set; } = [];
 
     [JsonPropertyName("dependencies")]
     public List<RemoteModDependency> Dependencies { get; set; } = [];

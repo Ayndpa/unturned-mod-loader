@@ -981,19 +981,21 @@ public partial class MainViewModel : ViewModelBase
     private async Task ApplyModsAsync(IReadOnlyList<RemoteMod> remoteMods, CancellationToken token)
     {
         Mods.Clear();
+        var locale = LocalizationService.CurrentLocaleCode;
 
         foreach (var remote in remoteMods)
         {
+            var description = LocalizedContent.Pick(remote.Description, locale);
             var vm = new ModItemViewModel
             {
                 Id = remote.Id,
-                Name = remote.Title,
+                Name = LocalizedContent.Pick(remote.Title, locale),
                 Author = remote.AuthorName,
                 Version = string.IsNullOrWhiteSpace(remote.Version) ? "—" : remote.Version,
                 Category = ModCategoryMapper.ToLabel(remote.Category),
-                Description = string.IsNullOrWhiteSpace(remote.Description)
+                Description = string.IsNullOrWhiteSpace(description)
                     ? L.Get(Common.NoDescription)
-                    : MarkdownTextHelper.StripForPreview(remote.Description),
+                    : MarkdownTextHelper.StripForPreview(description),
                 CoverUrl = remote.CoverUrl,
                 FileUrl = remote.FileUrl,
                 Downloads = remote.Downloads,

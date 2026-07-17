@@ -8,13 +8,13 @@ public class RemoteMod
     public int Id { get; set; }
 
     [JsonPropertyName("title")]
-    public string Title { get; set; } = "";
+    public LocalizedString Title { get; set; } = LocalizedString.Empty;
 
     [JsonPropertyName("description")]
-    public string? Description { get; set; }
+    public LocalizedString? Description { get; set; }
 
     [JsonPropertyName("body")]
-    public string? Body { get; set; }
+    public LocalizedString? Body { get; set; }
 
     [JsonPropertyName("category")]
     public string Category { get; set; } = "";
