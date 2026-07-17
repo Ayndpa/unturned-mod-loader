@@ -32,7 +32,6 @@
 
   <ItemGroup>
     <None Update="I18n\*.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Update="WinFsp\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
