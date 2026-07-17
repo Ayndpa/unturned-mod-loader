@@ -77,6 +77,9 @@ public static class Onboarding
     public const string GamePathLabel = "Localization.Onboarding.GamePathLabel";
     public const string GamePathPlaceholder = "Localization.Onboarding.GamePathPlaceholder";
     public const string Finish = "Localization.Onboarding.Finish";
+    public const string WinFspTitle = "Localization.Onboarding.WinFspTitle";
+    public const string WinFspDesc = "Localization.Onboarding.WinFspDesc";
+    public const string WinFspSkipHint = "Localization.Onboarding.WinFspSkipHint";
 }
 
 public static class Login
@@ -267,6 +270,11 @@ public static class Settings
     public const string UpdateDialogMessage = "Localization.Settings.UpdateDialogMessage";
     public const string GoToDownload = "Localization.Settings.GoToDownload";
     public const string CheckUpdates = "Localization.Settings.CheckUpdates";
+    public const string ResetOnboardingTitle = "Localization.Settings.ResetOnboardingTitle";
+    public const string ResetOnboardingDesc = "Localization.Settings.ResetOnboardingDesc";
+    public const string ResetOnboarding = "Localization.Settings.ResetOnboarding";
+    public const string ResetOnboardingConfirmTitle = "Localization.Settings.ResetOnboardingConfirmTitle";
+    public const string ResetOnboardingConfirmMsg = "Localization.Settings.ResetOnboardingConfirmMsg";
 }
 
 public static class GamePathKeys
@@ -294,6 +302,16 @@ public static class WinFspKeys
     public const string InstallFailed = "Localization.WinFsp.InstallFailed";
     public const string BundleMissing = "Localization.WinFsp.BundleMissing";
     public const string UacCancelled = "Localization.WinFsp.UacCancelled";
+    public const string DownloadSource = "Localization.WinFsp.DownloadSource";
+    public const string Retest = "Localization.WinFsp.Retest";
+    public const string Testing = "Localization.WinFsp.Testing";
+    public const string TestTimeout = "Localization.WinFsp.TestTimeout";
+    public const string MirrorDirect = "Localization.WinFsp.MirrorDirect";
+    public const string MirrorGhProxyCom = "Localization.WinFsp.MirrorGhProxyCom";
+    public const string MirrorGhProxyOrg = "Localization.WinFsp.MirrorGhProxyOrg";
+    public const string MirrorV4 = "Localization.WinFsp.MirrorV4";
+    public const string MirrorV6 = "Localization.WinFsp.MirrorV6";
+    public const string MirrorCdn = "Localization.WinFsp.MirrorCdn";
 }
 
 public static class Steam

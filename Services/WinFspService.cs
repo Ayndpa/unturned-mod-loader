@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.Versioning;
 using Microsoft.Win32;
+using UnturnedModLoader.Services.WinFsp;
 
 namespace UnturnedModLoader.Services;
 
@@ -45,9 +46,11 @@ public static class WinFspService
 
     /// <summary>
     /// Opens an elevated PowerShell window to run the bundled installer (UAC prompt).
+    /// The chosen <paramref name="mirror"/> is forwarded to the script so the MSI is
+    /// downloaded from the fastest source the user just measured.
     /// </summary>
     [SupportedOSPlatform("windows")]
-    public static (bool Started, string Message) StartElevatedInstall()
+    public static (bool Started, string Message) StartElevatedInstall(WinFspMirror mirror = WinFspMirror.Direct)
     {
         if (!File.Exists(InstallScriptPath))
             return (false, InstallScriptPath);
@@ -57,7 +60,7 @@ public static class WinFspService
             return (false, "PowerShell not found");
 
         // -NoExit keeps the elevated window open if the script errors before Read-Host.
-        var arg = $"-NoProfile -ExecutionPolicy Bypass -NoExit -File \"{InstallScriptPath}\"";
+        var arg = $"-NoProfile -ExecutionPolicy Bypass -NoExit -File \"{InstallScriptPath}\" -Mirror {mirror}";
         try
         {
             Process.Start(new ProcessStartInfo

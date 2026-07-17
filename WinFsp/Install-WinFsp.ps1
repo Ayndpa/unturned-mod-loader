@@ -2,10 +2,13 @@
 <#
   Install WinFsp (user-mode file system). Requires administrator.
   Uses winfsp-*.msi in this folder or cache\, else downloads from GitHub.
+  -Mirror selects the download source (the C# app has already speed-tested it).
 #>
 [CmdletBinding()]
 param(
-    [switch]$SkipDownload
+    [switch]$SkipDownload,
+    [ValidateSet('Direct','GhProxyCom','GhProxyOrg','V4GhProxyOrg','V6GhProxyOrg','CdnGhProxyOrg')]
+    [string]$Mirror = 'Direct'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -35,9 +38,27 @@ function Invoke-CheckScript {
     return $LASTEXITCODE
 }
 
-function Get-DownloadableMsiUrl {
-    $candidates = @()
+function Get-MirrorPrefix {
+    param([string]$MirrorName)
+    switch ($MirrorName) {
+        'GhProxyCom'    { return 'https://gh-proxy.com/' }
+        'GhProxyOrg'    { return 'https://gh-proxy.org/' }
+        'V4GhProxyOrg'  { return 'https://v4.gh-proxy.org/' }
+        'V6GhProxyOrg'  { return 'https://v6.gh-proxy.org/' }
+        'CdnGhProxyOrg' { return 'https://cdn.gh-proxy.org/' }
+        default         { return '' }   # Direct
+    }
+}
 
+function Get-MirroredUrl {
+    param([string]$RawGithubUrl, [string]$MirrorName)
+    $prefix = Get-MirrorPrefix -MirrorName $MirrorName
+    return "$prefix$RawGithubUrl"
+}
+
+function Get-DownloadableMsiUrl {
+    # Returns the raw github.com release URL of the latest winfsp-*.msi.
+    # Falls back to a pinned release if the GitHub API is unavailable.
     try {
         $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/winfsp/winfsp/releases/latest' `
             -Headers @{ 'User-Agent' = 'UnturnedModLoader' } -TimeoutSec 90
@@ -45,36 +66,17 @@ function Get-DownloadableMsiUrl {
             $_.name -match '^winfsp-[\d.]+\.msi$' -and $_.name -notmatch 'debug'
         } | Select-Object -First 1
         if ($asset) {
-            $candidates += [pscustomobject]@{ Url = $asset.browser_download_url; Name = $asset.name }
+            return [pscustomobject]@{ Url = $asset.browser_download_url; Name = $asset.name }
         }
     }
     catch {
         Write-Host "GitHub API unavailable: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 
-    $fallbackAssets = @(
-        @{ Tag = 'v2.1'; Name = 'winfsp-2.1.25156.msi' }
-        @{ Tag = 'v2.0'; Name = 'winfsp-2.0.23075.msi' }
-        @{ Tag = 'v1.12.22339'; Name = 'winfsp-1.12.22339.msi' }
-    )
-    foreach ($fb in $fallbackAssets) {
-        $candidates += [pscustomobject]@{
-            Url  = "https://github.com/winfsp/winfsp/releases/download/$($fb.Tag)/$($fb.Name)"
-            Name = $fb.Name
-        }
+    return [pscustomobject]@{
+        Url  = 'https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi'
+        Name = 'winfsp-2.1.25156.msi'
     }
-
-    foreach ($item in $candidates) {
-        try {
-            Invoke-WebRequest -Uri $item.Url -Method Head -UseBasicParsing -TimeoutSec 30 | Out-Null
-            return $item
-        }
-        catch {
-            continue
-        }
-    }
-
-    return $null
 }
 
 try {
@@ -111,10 +113,12 @@ try {
             throw 'Could not resolve a winfsp-*.msi download URL.'
         }
 
+        # Apply the mirror the C# app already speed-tested.
+        $mirroredUrl = Get-MirroredUrl -RawGithubUrl $dl.Url -MirrorName $Mirror
         $dest = Join-Path $CacheDir $dl.Name
         if (-not (Test-Path -LiteralPath $dest)) {
-            Write-Host "Download: $($dl.Url)"
-            Invoke-WebRequest -Uri $dl.Url -OutFile $dest -UseBasicParsing -TimeoutSec 600
+            Write-Host "Download ($Mirror): $mirroredUrl"
+            Invoke-WebRequest -Uri $mirroredUrl -OutFile $dest -UseBasicParsing -TimeoutSec 600
         }
         $msi = Get-Item -LiteralPath $dest
     }

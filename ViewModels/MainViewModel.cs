@@ -99,6 +99,8 @@ public partial class MainViewModel : ViewModelBase
     /// <summary>Whether the WinFsp virtual drive is mounted, for the launch-button indicator.</summary>
     public bool IsVfsMounted => _vfs.IsMounted;
 
+    public event Action? OnboardingResetRequested;
+
     /// <summary>Human-readable mount status shown next to the launch button.</summary>
     public string VfsMountStatus =>
         _vfs.IsMounted ? L.Get(Main.MountedAt, _vfs.MountPoint ?? "") : L.Get(Main.NotMounted);
@@ -305,9 +307,21 @@ public partial class MainViewModel : ViewModelBase
 
         var dialog = new SettingsWindow { DataContext = viewModel };
 
+        bool onboardingReset = false;
         viewModel.CloseRequested += () => dialog.Close();
+        viewModel.OnboardingResetRequested += () =>
+        {
+            onboardingReset = true;
+            dialog.Close();
+        };
 
         await dialog.ShowDialog(_owner);
+
+        if (onboardingReset)
+        {
+            OnboardingResetRequested?.Invoke();
+            return;
+        }
 
         GamePath = _settings.GamePath;
         OnPropertyChanged(nameof(Username));

@@ -96,6 +96,17 @@ public partial class App : Application
             vm.ConsumePendingInstall(modId);
             Program.PendingInstallModId = null;
         }
+
+        // When the user resets the setup wizard from Settings > About, close the main window
+        // and re-open the onboarding flow.
+        if (mainWindow.DataContext is MainViewModel mainVm)
+        {
+            mainVm.OnboardingResetRequested += () =>
+            {
+                mainWindow.Close();
+                ShowOnboarding(desktop, settingsService, settings, profileService, vfs);
+            };
+        }
     }
 
     private static MainWindow CreateMainWindow(

@@ -58,7 +58,7 @@
     "Onboarding": {
       "Title": "欢迎使用 Unturned Mod Loader",
       "Header": "新手引导",
-      "StepIndicator": "步骤 {0} / 2",
+      "StepIndicator": "步骤 {0} / {1}",
       "WelcomeTitle": "欢迎使用 Unturned Mod Loader",
       "WelcomeDesc1": "本工具可帮助你管理 Unturned 模组，并在启动游戏时自动加载已启用的模组。",
       "WelcomeDesc2": "首次使用建议设置游戏安装目录。我们会尝试通过 Steam 自动检测，你也可以手动选择，或稍后再配置。",
@@ -66,7 +66,10 @@
       "GamePathDesc": "请选择包含 Unturned.exe 的游戏安装文件夹。也可以点击「跳过」，稍后在主界面配置。",
       "GamePathLabel": "游戏路径",
       "GamePathPlaceholder": "例如：C:\\Program Files (x86)\\Steam\\steamapps\\common\\Unturned",
-      "Finish": "完成设置"
+      "Finish": "完成设置",
+      "WinFspTitle": "安装 WinFsp 驱动",
+      "WinFspDesc": "携带模组启动游戏需要 WinFsp 驱动。它会创建一个虚拟盘，将模组文件与游戏目录合并后提供给游戏。点击下方「一键安装 WinFsp」即可完成安装（需要管理员权限确认）。",
+      "WinFspSkipHint": "也可以稍后在「设置 → 关于」中安装。没有 WinFsp 将无法携带模组启动游戏。"
     },
     "Login": {
       "Title": "登录 - Unturned Mod Loader",
@@ -193,7 +196,12 @@
       "UpdateDialogTitle": "检测到新版本",
       "UpdateDialogMessage": "发现新版本 {0}，是否前往 GitHub 下载安装？\n\n更新日志：\n{1}",
       "GoToDownload": "前往下载",
-      "CheckUpdates": "检查更新"
+      "CheckUpdates": "检查更新",
+      "ResetOnboardingTitle": "重新进行新手引导",
+      "ResetOnboardingDesc": "清除引导完成标记，下次启动时将重新显示新手引导。",
+      "ResetOnboarding": "重新进行新手引导",
+      "ResetOnboardingConfirmTitle": "重新进行新手引导",
+      "ResetOnboardingConfirmMsg": "确认后应用将关闭并重新弹出新手引导，是否继续？"
     },
     "WinFsp": {
       "Title": "WinFsp 文件系统驱动",
@@ -207,7 +215,17 @@
       "InstallStarted": "已打开管理员安装窗口，请按提示完成安装后点击「重新检查」。",
       "InstallFailed": "无法启动安装：{0}",
       "BundleMissing": "安装脚本未随应用发布，请重新安装 Mod Loader 或从 mod-loader/WinFsp 目录手动运行脚本。",
-      "UacCancelled": "已取消 UAC 提升或未授予管理员权限。"
+      "UacCancelled": "已取消 UAC 提升或未授予管理员权限。",
+      "DownloadSource": "下载源",
+      "Retest": "重新测速",
+      "Testing": "测速中…",
+      "TestTimeout": "超时/Fail",
+      "MirrorDirect": "GitHub 官方源 (直连)",
+      "MirrorGhProxyCom": "gh-proxy.com (推荐/全球加速)",
+      "MirrorGhProxyOrg": "gh-proxy.org (主站/全球加速)",
+      "MirrorV4": "v4.gh-proxy.org (优选 IPv4)",
+      "MirrorV6": "v6.gh-proxy.org (优选 IPv6/v4)",
+      "MirrorCdn": "cdn.gh-proxy.org (Fastly CDN)"
     },
     "GamePath": {
       "PickerTitle": "选择 Unturned 游戏目录",

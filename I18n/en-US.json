@@ -58,7 +58,7 @@
     "Onboarding": {
       "Title": "Welcome to Unturned Mod Loader",
       "Header": "Getting Started",
-      "StepIndicator": "Step {0} / 2",
+      "StepIndicator": "Step {0} / {1}",
       "WelcomeTitle": "Welcome to Unturned Mod Loader",
       "WelcomeDesc1": "Manage your Unturned mods and automatically load enabled mods when launching the game.",
       "WelcomeDesc2": "We recommend setting your game install folder on first launch. We can try detecting it via Steam, or you can browse manually and configure it later.",
@@ -66,7 +66,10 @@
       "GamePathDesc": "Choose the folder that contains Unturned.exe. You can also click Skip and configure it later from the main window.",
       "GamePathLabel": "Game Path",
       "GamePathPlaceholder": "e.g. C:\\Program Files (x86)\\Steam\\steamapps\\common\\Unturned",
-      "Finish": "Finish Setup"
+      "Finish": "Finish Setup",
+      "WinFspTitle": "Install WinFsp Driver",
+      "WinFspDesc": "WinFsp is required to launch Unturned with mods. It creates a virtual drive that merges your mod files with the game folder. Click \"Install WinFsp\" below to run a one-click installer (requires administrator approval).",
+      "WinFspSkipHint": "You can install WinFsp later from Settings → About. Without it, the game cannot be launched with mods."
     },
     "Login": {
       "Title": "Log in - Unturned Mod Loader",
@@ -193,7 +196,12 @@
       "UpdateDialogTitle": "New Version Available",
       "UpdateDialogMessage": "A new version {0} is available. Would you like to go to GitHub to download and install it?\n\nChangelog:\n{1}",
       "GoToDownload": "Go to Download",
-      "CheckUpdates": "Check for Updates"
+      "CheckUpdates": "Check for Updates",
+      "ResetOnboardingTitle": "Reset Setup Wizard",
+      "ResetOnboardingDesc": "Clear the setup wizard completion flag and re-run the first-time setup on next launch.",
+      "ResetOnboarding": "Reset Setup Wizard",
+      "ResetOnboardingConfirmTitle": "Reset Setup Wizard",
+      "ResetOnboardingConfirmMsg": "This will close the app and re-open the setup wizard. Continue?"
     },
     "WinFsp": {
       "Title": "WinFsp file system driver",
@@ -207,7 +215,17 @@
       "InstallStarted": "An elevated installer window was opened. After setup finishes, click Check again.",
       "InstallFailed": "Could not start install: {0}",
       "BundleMissing": "Install scripts were not deployed with the app. Reinstall Mod Loader or run scripts from mod-loader/WinFsp manually.",
-      "UacCancelled": "UAC elevation was cancelled or administrator rights were not granted."
+      "UacCancelled": "UAC elevation was cancelled or administrator rights were not granted.",
+      "DownloadSource": "Download source",
+      "Retest": "Retest speed",
+      "Testing": "Testing…",
+      "TestTimeout": "Timeout/Fail",
+      "MirrorDirect": "GitHub Official (Direct)",
+      "MirrorGhProxyCom": "gh-proxy.com (Recommended / Global)",
+      "MirrorGhProxyOrg": "gh-proxy.org (Main / Global)",
+      "MirrorV4": "v4.gh-proxy.org (Optimized IPv4)",
+      "MirrorV6": "v6.gh-proxy.org (Optimized IPv6/v4)",
+      "MirrorCdn": "cdn.gh-proxy.org (Fastly CDN)"
     },
     "GamePath": {
       "PickerTitle": "Select Unturned Game Folder",

@@ -182,11 +182,53 @@
                                     BorderThickness="1"
                                     CornerRadius="8"
                                     Padding="12,10">
-                                <TextBlock Text="{Binding WinFspStatusText}"
-                                           FontSize="12"
-                                           Foreground="{StaticResource InkSoftBrush}"
-                                           TextWrapping="Wrap" />
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="{Binding WinFspStatusText}"
+                                               FontSize="12"
+                                               Foreground="{StaticResource InkSoftBrush}"
+                                               TextWrapping="Wrap" />
+                                    <!-- Mount point, shown together with the install status when installed -->
+                                    <StackPanel Orientation="Horizontal" Spacing="8"
+                                                IsVisible="{Binding IsWinFspInstalled}">
+                                        <LucideIcon Kind="HardDrive" Size="14" Foreground="{StaticResource MidGrayBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding MountStatusText}"
+                                                   FontSize="12"
+                                                   Foreground="{StaticResource InkSoftBrush}"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </StackPanel>
                             </Border>
+
+                            <!-- Download-mirror picker (speed-tested, fastest auto-selected) -->
+                            <StackPanel Spacing="8" IsVisible="{Binding CanInstallWinFsp}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{c:I18n {x:Static i18n:WinFspKeys.DownloadSource}}"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource MidGrayBrush}"
+                                               VerticalAlignment="Center" />
+                                    <ComboBox ItemsSource="{Binding MirrorPicker.Options}"
+                                              SelectedItem="{Binding MirrorPicker.SelectedOption}"
+                                              MinWidth="240">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate DataType="vm:WinFspMirrorOptionViewModel">
+                                                <TextBlock Text="{Binding DisplayText}" FontSize="12" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <Button Classes="iconText"
+                                            Command="{Binding MirrorPicker.TestCommand}"
+                                            IsEnabled="{Binding !MirrorPicker.IsTesting}">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <LucideIcon Kind="Zap" Size="14" Classes.loader="{Binding MirrorPicker.IsTesting}" />
+                                            <TextBlock Text="{c:I18n {x:Static i18n:WinFspKeys.Retest}}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                                <TextBlock Text="{Binding MirrorPicker.TestStatus}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource MidGrayBrush}" />
+                            </StackPanel>
 
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <Button Classes="primary iconText"
@@ -212,21 +254,6 @@
                                        Foreground="{StaticResource MidGrayBrush}"
                                        TextWrapping="Wrap"
                                        IsVisible="{Binding WinFspActionStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-
-                            <Border Background="{StaticResource BgPaperBrush}"
-                                    BorderBrush="{StaticResource HairlineBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="8"
-                                    Padding="12,10"
-                                    IsVisible="{Binding IsWinFspInstalled}">
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <LucideIcon Kind="HardDrive" Size="14" Foreground="{StaticResource MidGrayBrush}" />
-                                    <TextBlock Text="{Binding MountStatusText}"
-                                               FontSize="12"
-                                               Foreground="{StaticResource InkSoftBrush}"
-                                               VerticalAlignment="Center" />
-                                </StackPanel>
-                            </Border>
                         </StackPanel>
 
                         <StackPanel IsVisible="{Binding IsProfilesSection}" Spacing="14">
@@ -543,6 +570,30 @@
                                                Foreground="{StaticResource MidGrayBrush}"
                                                VerticalAlignment="Center" />
                                 </StackPanel>
+                            </StackPanel>
+
+                            <Border Height="1" Background="{StaticResource HairlineBrush}" />
+
+                            <StackPanel Spacing="14">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="{c:I18n {x:Static i18n:Settings.ResetOnboardingTitle}}"
+                                               FontSize="15"
+                                               FontWeight="SemiBold"
+                                               Foreground="{StaticResource InkBrush}" />
+                                    <TextBlock Text="{c:I18n {x:Static i18n:Settings.ResetOnboardingDesc}}"
+                                               FontSize="12"
+                                               Foreground="{StaticResource MidGrayBrush}"
+                                               TextWrapping="Wrap"
+                                               LineHeight="18" />
+                                </StackPanel>
+
+                                <Button Classes="iconText"
+                                        Command="{Binding ResetOnboardingCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <LucideIcon Kind="RotateCcw" Size="14" />
+                                        <TextBlock Text="{c:I18n {x:Static i18n:Settings.ResetOnboarding}}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
                             </StackPanel>
                         </StackPanel>
                     </Panel>

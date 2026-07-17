@@ -6,13 +6,13 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        d:DesignWidth="560" d:DesignHeight="480"
+        d:DesignWidth="560" d:DesignHeight="520"
         x:Class="UnturnedModLoader.Views.OnboardingWindow"
         x:DataType="vm:OnboardingViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="{c:I18n {x:Static i18n:Onboarding.Title}}"
-        Width="560" Height="480"
-        MinWidth="480" MinHeight="420"
+        Width="560" Height="520"
+        MinWidth="480" MinHeight="460"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BgCanvasBrush}">
@@ -49,6 +49,7 @@
 
             <Panel Grid.Row="1">
 
+                <!-- Step 1: Welcome -->
                 <StackPanel IsVisible="{Binding IsWelcomeStep}" Spacing="14" VerticalAlignment="Center">
                     <TextBlock Text="{c:I18n {x:Static i18n:Onboarding.WelcomeTitle}}"
                                FontSize="22"
@@ -66,6 +67,7 @@
                                LineHeight="22" />
                 </StackPanel>
 
+                <!-- Step 2: Game Path -->
                 <StackPanel IsVisible="{Binding IsGamePathStep}" Spacing="16">
                     <StackPanel Spacing="6">
                         <TextBlock Text="{c:I18n {x:Static i18n:Onboarding.GamePathTitle}}"
@@ -117,6 +119,113 @@
                                    VerticalAlignment="Center" />
                     </Border>
                 </StackPanel>
+
+                <!-- Step 3: WinFsp (Windows only, shown when not installed) -->
+                <StackPanel IsVisible="{Binding IsWinFspStep}" Spacing="16">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="{c:I18n {x:Static i18n:Onboarding.WinFspTitle}}"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource InkBrush}" />
+                        <TextBlock Text="{c:I18n {x:Static i18n:Onboarding.WinFspDesc}}"
+                                   FontSize="13"
+                                   Foreground="{StaticResource MidGrayBrush}"
+                                   TextWrapping="Wrap"
+                                   LineHeight="20" />
+                    </StackPanel>
+
+                    <!-- Status box -->
+                    <Border Background="{StaticResource BgSurfaceAltBrush}"
+                            BorderBrush="{StaticResource HairlineBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12,10"
+                            MinHeight="44">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <LucideIcon Kind="CircleCheckBig"
+                                        Size="16"
+                                        Foreground="Green"
+                                        IsVisible="{Binding IsWinFspInstalled}" />
+                            <LucideIcon Kind="CircleAlert"
+                                        Size="16"
+                                        Foreground="{StaticResource MidGrayBrush}"
+                                        IsVisible="{Binding !IsWinFspInstalled}" />
+                            <TextBlock Text="{Binding WinFspStatusText}"
+                                       FontSize="12"
+                                       Foreground="{StaticResource InkSoftBrush}"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Download-mirror picker (speed-tested, fastest auto-selected) -->
+                    <StackPanel Spacing="8" IsVisible="{Binding CanInstallWinFsp}">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{c:I18n {x:Static i18n:WinFspKeys.DownloadSource}}"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource MidGrayBrush}"
+                                       VerticalAlignment="Center" />
+                            <ComboBox ItemsSource="{Binding MirrorPicker.Options}"
+                                      SelectedItem="{Binding MirrorPicker.SelectedOption}"
+                                      MinWidth="220">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate DataType="vm:WinFspMirrorOptionViewModel">
+                                        <TextBlock Text="{Binding DisplayText}" FontSize="12" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Button Classes="iconText"
+                                    Command="{Binding MirrorPicker.TestCommand}"
+                                    IsEnabled="{Binding !MirrorPicker.IsTesting}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <LucideIcon Kind="Zap" Size="14" Classes.loader="{Binding MirrorPicker.IsTesting}" />
+                                    <TextBlock Text="{c:I18n {x:Static i18n:WinFspKeys.Retest}}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Text="{Binding MirrorPicker.TestStatus}"
+                                   FontSize="12"
+                                   Foreground="{StaticResource MidGrayBrush}" />
+                    </StackPanel>
+
+                    <!-- Action buttons -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Classes="primary"
+                                Command="{Binding InstallWinFspCommand}"
+                                IsVisible="{Binding CanInstallWinFsp}"
+                                IsEnabled="{Binding !IsWinFspChecking}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <LucideIcon Kind="Download" Size="14" />
+                                <TextBlock Text="{c:I18n {x:Static i18n:WinFspKeys.Install}}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="iconText"
+                                Command="{Binding RefreshWinFspStatusCommand}"
+                                IsEnabled="{Binding !IsWinFspChecking}">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <LucideIcon Kind="RefreshCw" Size="14" Classes.loader="{Binding IsWinFspChecking}" />
+                                <TextBlock Text="{c:I18n {x:Static i18n:WinFspKeys.Recheck}}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Install action feedback -->
+                    <TextBlock Text="{Binding WinFspActionStatus}"
+                               FontSize="12"
+                               Foreground="{StaticResource MidGrayBrush}"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding WinFspActionStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                    <!-- Skip hint -->
+                    <TextBlock Text="{c:I18n {x:Static i18n:Onboarding.WinFspSkipHint}}"
+                               FontSize="12"
+                               Foreground="{StaticResource MidGrayBrush}"
+                               TextWrapping="Wrap"
+                               LineHeight="18"
+                               Opacity="0.7" />
+                </StackPanel>
+
             </Panel>
 
             <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Margin="0,24,0,0">
@@ -124,7 +233,7 @@
                         Classes="ghost"
                         Content="{c:I18n {x:Static i18n:Common.Back}}"
                         Command="{Binding BackCommand}"
-                        IsVisible="{Binding IsGamePathStep}" />
+                        IsVisible="{Binding IsBackVisible}" />
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                     <Button Content="{c:I18n {x:Static i18n:Common.Skip}}"
@@ -134,12 +243,12 @@
                     <Button Content="{c:I18n {x:Static i18n:Common.Next}}"
                             Classes="primary"
                             Command="{Binding NextCommand}"
-                            IsVisible="{Binding IsWelcomeStep}"
+                            IsVisible="{Binding IsNextVisible}"
                             Padding="20,8" />
                     <Button Content="{c:I18n {x:Static i18n:Onboarding.Finish}}"
                             Classes="primary"
                             Command="{Binding FinishCommand}"
-                            IsVisible="{Binding IsGamePathStep}"
+                            IsVisible="{Binding IsFinishVisible}"
                             Padding="20,8" />
                 </StackPanel>
             </Grid>

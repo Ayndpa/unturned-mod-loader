@@ -93,6 +93,9 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     private string _currentVersionText = "";
 
+    /// <summary>Download-mirror picker shared with the onboarding wizard.</summary>
+    public WinFspMirrorPickerViewModel MirrorPicker { get; } = new();
+
     public bool IsLoggedIn => _settings.IsLoggedIn;
     public IReadOnlyList<string> LocaleOptions { get; } = ["zh", "en"];
     public bool IsZhLocaleSelected => SelectedLocale == "zh";
@@ -109,6 +112,7 @@ public partial class SettingsViewModel : ViewModelBase
     public ObservableCollection<ProfileItemViewModel> Profiles { get; } = [];
 
     public event Action? CloseRequested;
+    public event Action? OnboardingResetRequested;
 
     public SettingsViewModel(
         SettingsService settingsService,
@@ -143,6 +147,9 @@ public partial class SettingsViewModel : ViewModelBase
         UpdateGamePathStatus();
         RefreshProfiles();
         RefreshWinFspStatus();
+
+        MirrorPicker.RefreshLabels();
+        MirrorPicker.TestCommand.Execute(null);
 
         if (IsLoggedIn)
             _ = LoadAccountAsync();
@@ -186,6 +193,25 @@ public partial class SettingsViewModel : ViewModelBase
 
     [RelayCommand]
     private void Close() => CloseRequested?.Invoke();
+
+    [RelayCommand]
+    private async Task ResetOnboardingAsync()
+    {
+        var confirmed = await DialogService.ConfirmAsync(
+            _owner,
+            L.Get(I18n.Settings.ResetOnboardingConfirmTitle),
+            L.Get(I18n.Settings.ResetOnboardingConfirmMsg),
+            confirmText: L.Get(Common.Confirm),
+            cancelText: L.Get(Common.Cancel)
+        );
+
+        if (!confirmed)
+            return;
+
+        _settings.OnboardingCompleted = false;
+        _settingsService.Save(_settings);
+        OnboardingResetRequested?.Invoke();
+    }
 
     [RelayCommand]
     private async Task AutoDetectGamePathAsync()
@@ -251,7 +277,7 @@ public partial class SettingsViewModel : ViewModelBase
             return;
         }
 
-        var (started, message) = WinFspService.StartElevatedInstall();
+        var (started, message) = WinFspService.StartElevatedInstall(MirrorPicker.SelectedMirror);
         if (!started)
         {
             if (message.Contains("canceled", StringComparison.OrdinalIgnoreCase)
@@ -658,6 +684,7 @@ public partial class SettingsViewModel : ViewModelBase
         UpdateGamePathStatus();
         RefreshWinFspStatus();
         RefreshMountStatus();
+        MirrorPicker.RefreshLabels();
         if (!string.IsNullOrWhiteSpace(_currentRole))
             RoleLabel = MapRoleLabel(_currentRole);
         RefreshProfiles();
