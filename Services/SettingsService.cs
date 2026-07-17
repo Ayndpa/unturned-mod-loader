@@ -44,7 +44,7 @@ public class SettingsService
     /// <summary>
     /// Migrates v1 layout / legacy vanilla id into multi-profile overlay storage.
     /// </summary>
-    public string? MigrateIfNeeded(AppSettings settings, GameOverlayService overlayService, ProfileService profileService)
+    public string? MigrateIfNeeded(AppSettings settings, ProfileService profileService)
     {
         AppPaths.EnsureAppData();
         Directory.CreateDirectory(AppPaths.ProfilesRoot);
@@ -62,14 +62,6 @@ public class SettingsService
 
         var needsVersionBump = settings.SettingsVersion < 2;
         var legacyManifestExists = File.Exists(AppPaths.LegacyInstalledModsPath);
-        var gameModules = GamePathValidator.IsValid(settings.GamePath)
-            ? AppPaths.GameModulesFolder(settings.GamePath)
-            : null;
-
-        var realModulesHasContent = gameModules is not null
-                                    && Directory.Exists(gameModules)
-                                    && !JunctionHelper.IsJunction(gameModules)
-                                    && Directory.EnumerateFileSystemEntries(gameModules).Any();
 
         if (Directory.Exists(AppPaths.ProfilesRoot))
         {
@@ -83,7 +75,7 @@ public class SettingsService
 
         profileService.EnsureAtLeastOneProfile();
 
-        if (!needsVersionBump && !legacyManifestExists && !realModulesHasContent)
+        if (!needsVersionBump && !legacyManifestExists)
         {
             if (settings.SettingsVersion < 2)
             {
@@ -99,44 +91,22 @@ public class SettingsService
 
         string? message = null;
 
-        if (legacyManifestExists || realModulesHasContent)
+        if (legacyManifestExists)
         {
             var defaultProfile = profileService.Create(GetDefaultProfileName());
-            var modulesDest = AppPaths.ProfileModulesFolder(defaultProfile.Id);
-            Directory.CreateDirectory(modulesDest);
+            AppPaths.EnsureProfileLayout(defaultProfile.Id);
 
-            if (realModulesHasContent && gameModules is not null)
+            try
             {
-                try
-                {
-                    MoveDirectoryContents(gameModules, modulesDest);
-                    if (!Directory.EnumerateFileSystemEntries(gameModules).Any())
-                        Directory.Delete(gameModules);
-
-                    message = "Migrated existing Modules into a new profile overlay.";
-                }
-                catch (Exception ex)
-                {
-                    message = $"Migration incomplete: {ex.Message}";
-                    Save(settings);
-                    return message;
-                }
+                var dest = AppPaths.ProfileInstalledModsPath(defaultProfile.Id);
+                if (!File.Exists(dest))
+                    File.Move(AppPaths.LegacyInstalledModsPath, dest);
+                else
+                    File.Delete(AppPaths.LegacyInstalledModsPath);
             }
-
-            if (legacyManifestExists)
+            catch
             {
-                try
-                {
-                    var dest = AppPaths.ProfileInstalledModsPath(defaultProfile.Id);
-                    if (!File.Exists(dest))
-                        File.Move(AppPaths.LegacyInstalledModsPath, dest);
-                    else
-                        File.Delete(AppPaths.LegacyInstalledModsPath);
-                }
-                catch
-                {
-                    // best effort
-                }
+                // best effort
             }
 
             settings.ActiveProfileId = defaultProfile.Id;
@@ -145,43 +115,7 @@ public class SettingsService
 
         Save(settings);
 
-        try
-        {
-            if (GamePathValidator.IsValid(settings.GamePath)
-                && !GameProcessService.IsRunning(settings.GamePath))
-            {
-                var active = profileService.GetById(settings.ActiveProfileId) ?? profileService.GetActive();
-                overlayService.Apply(active, settings.GamePath);
-            }
-        }
-        catch
-        {
-            // best-effort
-        }
-
         return message;
-    }
-
-    private static void MoveDirectoryContents(string sourceDir, string destDir)
-    {
-        foreach (var entry in Directory.EnumerateFileSystemEntries(sourceDir))
-        {
-            var name = Path.GetFileName(entry);
-            var dest = Path.Combine(destDir, name);
-            if (Directory.Exists(entry))
-            {
-                if (Directory.Exists(dest))
-                    MoveDirectoryContents(entry, dest);
-                else
-                    Directory.Move(entry, dest);
-            }
-            else
-            {
-                if (File.Exists(dest))
-                    File.Delete(dest);
-                File.Move(entry, dest);
-            }
-        }
     }
 
     private static string GetDefaultProfileName()

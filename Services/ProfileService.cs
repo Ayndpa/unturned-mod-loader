@@ -9,16 +9,16 @@ public sealed class ProfileService
 
     private readonly SettingsService _settingsService;
     private readonly AppSettings _settings;
-    private readonly GameOverlayService _overlayService;
+    private readonly VirtualFilesystemService _vfs;
 
     public ProfileService(
         SettingsService settingsService,
         AppSettings settings,
-        GameOverlayService overlayService)
+        VirtualFilesystemService vfs)
     {
         _settingsService = settingsService;
         _settings = settings;
-        _overlayService = overlayService;
+        _vfs = vfs;
         AppPaths.EnsureAppData();
         Directory.CreateDirectory(AppPaths.ProfilesRoot);
     }
@@ -209,10 +209,8 @@ public sealed class ProfileService
             return MountResult.Fail("Configure a valid game path first.");
 
         AppPaths.EnsureProfileLayout(profile.Id);
-        var mountResult = _overlayService.Apply(profile, gamePath);
-        if (!mountResult.Success)
-            return mountResult;
-
+        _vfs.SetLowerRoot(gamePath);
+        _vfs.SetActiveOverlay(profile.Id);
         _settings.ActiveProfileId = profile.Id;
         _settingsService.Save(_settings);
         return MountResult.Ok();
@@ -230,7 +228,9 @@ public sealed class ProfileService
         if (GameProcessService.IsRunning(gamePath))
             return MountResult.Ok();
 
-        return _overlayService.Apply(profile, gamePath);
+        _vfs.SetLowerRoot(gamePath);
+        _vfs.SetActiveOverlay(profile.Id);
+        return MountResult.Ok();
     }
 
     public void SaveMeta(GameProfile profile)

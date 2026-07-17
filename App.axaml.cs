@@ -30,16 +30,24 @@ public partial class App : Application
             LocalizationService.Initialize(settings);
             ThemeService.Initialize(settings);
 
-            var overlayService = new GameOverlayService();
-            var profileService = new ProfileService(settingsService, settings, overlayService);
-            settingsService.MigrateIfNeeded(settings, overlayService, profileService);
+            var vfs = new VirtualFilesystemService();
+            var profileService = new ProfileService(settingsService, settings, vfs);
+            settingsService.MigrateIfNeeded(settings, profileService);
             profileService.EnsureAtLeastOneProfile();
             profileService.SyncActiveMounts();
 
+            // Best-effort removal of junctions the legacy overlay left in the real install.
+            LeftoverJunctionCleanup.Run(settings.GamePath);
+
+            // Mount the virtual drive for the whole process lifetime (non-fatal on failure).
+            _ = vfs.Mount();
+
+            desktop.ShutdownRequested += (_, _) => vfs.Dispose();
+
             if (!settings.OnboardingCompleted)
-                ShowOnboarding(desktop, settingsService, settings, profileService, overlayService);
+                ShowOnboarding(desktop, settingsService, settings, profileService, vfs);
             else
-                ShowMain(desktop, settingsService, settings, profileService, overlayService);
+                ShowMain(desktop, settingsService, settings, profileService, vfs);
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -50,7 +58,7 @@ public partial class App : Application
         SettingsService settingsService,
         AppSettings settings,
         ProfileService profileService,
-        GameOverlayService overlayService)
+        VirtualFilesystemService vfs)
     {
         var onboardingWindow = new OnboardingWindow();
         var folderPicker = new FolderPickerService(onboardingWindow);
@@ -59,7 +67,7 @@ public partial class App : Application
         viewModel.Completed += completedSettings =>
         {
             profileService.SyncActiveMounts();
-            ShowMain(desktop, settingsService, completedSettings, profileService, overlayService);
+            ShowMain(desktop, settingsService, completedSettings, profileService, vfs);
             onboardingWindow.Close();
         };
 
@@ -72,10 +80,10 @@ public partial class App : Application
         SettingsService settingsService,
         AppSettings settings,
         ProfileService profileService,
-        GameOverlayService overlayService)
+        VirtualFilesystemService vfs)
     {
         var api = new ApiClientBundle(settings);
-        var mainWindow = CreateMainWindow(settingsService, settings, api, profileService, overlayService);
+        var mainWindow = CreateMainWindow(settingsService, settings, api, profileService, vfs);
         desktop.MainWindow = mainWindow;
         mainWindow.Show();
 
@@ -95,7 +103,7 @@ public partial class App : Application
         AppSettings settings,
         ApiClientBundle api,
         ProfileService profileService,
-        GameOverlayService overlayService)
+        VirtualFilesystemService vfs)
     {
         var mainWindow = new MainWindow();
         var folderPicker = new FolderPickerService(mainWindow);
@@ -106,7 +114,6 @@ public partial class App : Application
         var installedModsService = new InstalledModsService(scriptService);
         var active = profileService.GetActive();
         installedModsService.UseProfile(active.Id);
-        var sessionCapture = new GameSessionCaptureService(overlayService);
         var downloadService = new ModDownloadService(scriptService, installedModsService);
 
         mainWindow.DataContext = new MainViewModel(
@@ -118,8 +125,7 @@ public partial class App : Application
             imageService,
             installedModsService,
             profileService,
-            overlayService,
-            sessionCapture,
+            vfs,
             downloadService,
             mainWindow);
 

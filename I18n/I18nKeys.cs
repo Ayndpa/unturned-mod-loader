@@ -167,6 +167,13 @@ public static class Main
     public const string ProfileSwitched = "Localization.Main.ProfileSwitched";
     public const string ProfileSwitchFailed = "Localization.Main.ProfileSwitchFailed";
     public const string ManageProfiles = "Localization.Main.ManageProfiles";
+    public const string OpenVirtualDirectory = "Localization.Main.OpenVirtualDirectory";
+    public const string OpenVirtualDirectoryTip = "Localization.Main.OpenVirtualDirectoryTip";
+    public const string WinFspRequired = "Localization.Main.WinFspRequired";
+    public const string VirtualDriveNotMounted = "Localization.Main.VirtualDriveNotMounted";
+    public const string VirtualDrivePath = "Localization.Main.VirtualDrivePath";
+    public const string MountedAt = "Localization.Main.MountedAt";
+    public const string NotMounted = "Localization.Main.NotMounted";
     public const string CapturingRuntimeChanges = "Localization.Main.CapturingRuntimeChanges";
     public const string CaptureRuntimeFailed = "Localization.Main.CaptureRuntimeFailed";
 }

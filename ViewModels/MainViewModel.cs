@@ -28,8 +28,7 @@ public partial class MainViewModel : ViewModelBase
     private readonly RemoteImageService _imageService;
     private readonly InstalledModsService _installedModsService;
     private readonly ProfileService _profileService;
-    private readonly GameOverlayService _overlayService;
-    private readonly GameSessionCaptureService _sessionCapture;
+    private readonly VirtualFilesystemService _vfs;
     private readonly ModDownloadService _downloadService;
     private readonly Window _owner;
     private CancellationTokenSource? _searchDebounceCts;
@@ -103,6 +102,13 @@ public partial class MainViewModel : ViewModelBase
     public bool ShowSearchEmptyIcon => IsEmpty && IsSearchEmpty && !IsErrorState;
     public bool ShowErrorEmptyIcon => IsEmpty && IsErrorState;
 
+    /// <summary>Whether the WinFsp virtual drive is mounted, for the launch-button indicator.</summary>
+    public bool IsVfsMounted => _vfs.IsMounted;
+
+    /// <summary>Human-readable mount status shown next to the launch button.</summary>
+    public string VfsMountStatus =>
+        _vfs.IsMounted ? L.Get(Main.MountedAt, _vfs.MountPoint ?? "") : L.Get(Main.NotMounted);
+
     public MainViewModel(
         SettingsService settingsService,
         AppSettings settings,
@@ -112,8 +118,7 @@ public partial class MainViewModel : ViewModelBase
         RemoteImageService imageService,
         InstalledModsService installedModsService,
         ProfileService profileService,
-        GameOverlayService overlayService,
-        GameSessionCaptureService sessionCapture,
+        VirtualFilesystemService vfs,
         ModDownloadService downloadService,
         Window owner)
     {
@@ -125,8 +130,7 @@ public partial class MainViewModel : ViewModelBase
         _imageService = imageService;
         _installedModsService = installedModsService;
         _profileService = profileService;
-        _overlayService = overlayService;
-        _sessionCapture = sessionCapture;
+        _vfs = vfs;
         _downloadService = downloadService;
         _owner = owner;
         _gamePath = settings.GamePath;
@@ -135,7 +139,14 @@ public partial class MainViewModel : ViewModelBase
         RefreshProfileList();
         UpdateStatus();
         StartGameProcessMonitoring();
+        NotifyVfsMountChanged();
         _ = InitializeAsync();
+    }
+
+    private void NotifyVfsMountChanged()
+    {
+        OnPropertyChanged(nameof(IsVfsMounted));
+        OnPropertyChanged(nameof(VfsMountStatus));
     }
 
     [RelayCommand]
@@ -284,7 +295,7 @@ public partial class MainViewModel : ViewModelBase
             _folderPicker,
             _session,
             _profileService,
-            _overlayService,
+            _vfs,
             _owner,
             initialSection: section);
 
@@ -311,6 +322,30 @@ public partial class MainViewModel : ViewModelBase
 
     [RelayCommand]
     private async Task ManageProfilesAsync() => await OpenSettingsAsync("profiles");
+
+    [RelayCommand]
+    private void OpenVirtualDirectory()
+    {
+        var mountPoint = _vfs.MountPoint;
+        if (string.IsNullOrWhiteSpace(mountPoint))
+        {
+            StatusText = L.Get(Main.VirtualDriveNotMounted);
+            return;
+        }
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = mountPoint + Path.DirectorySeparatorChar,
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            StatusText = ex.Message;
+        }
+    }
 
     [RelayCommand]
     private async Task SelectProfileAsync(string? profileId)
@@ -352,24 +387,33 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        var active = _profileService.GetActive();
-        if (!GameProcessService.IsRunning(GamePath))
+        // The game launches from the virtual drive, so WinFsp + a mounted volume are required.
+        var winFspState = WinFspService.GetStatus().State;
+        if (winFspState != WinFspInstallState.Installed)
         {
-            var mount = _overlayService.EnsureApplied(active, GamePath);
-            if (!mount.Success)
-            {
-                StatusText = L.Get(Main.ProfileSwitchFailed, mount.Error ?? "");
-                return;
-            }
-        }
-
-        if (!GameProcessService.TryLaunch(GamePath, out var error))
-        {
-            StatusText = L.Get(Main.LaunchFailed, error ?? "");
+            StatusText = L.Get(Main.WinFspRequired);
             return;
         }
 
-        _sessionCapture.Start(active.Id, GamePath);
+        if (!_vfs.IsMounted)
+        {
+            StatusText = L.Get(Main.VirtualDriveNotMounted);
+            return;
+        }
+
+        var active = _profileService.GetActive();
+        // Ensure the active profile's overlay is bound to the volume (no-op if already current).
+        _vfs.SetLowerRoot(GamePath);
+        _vfs.SetActiveOverlay(active.Id);
+
+        if (!GameProcessService.IsRunning(GamePath, _vfs.DriveLetter))
+        {
+            if (!GameProcessService.TryLaunchFromVirtualDrive(_vfs.DriveLetter, out var error))
+            {
+                StatusText = L.Get(Main.LaunchFailed, error ?? "");
+                return;
+            }
+        }
 
         StatusText = L.Get(Main.LaunchStarted);
         IsGameRunning = true;
@@ -697,19 +741,6 @@ public partial class MainViewModel : ViewModelBase
         _gameProcessTimer.Stop();
         _gameProcessTimer.Tick -= OnGameProcessTimerTick;
 
-        // If the game was running under capture, absorb before clearing state.
-        if (_wasGameRunning || _sessionCapture.IsActive)
-        {
-            try
-            {
-                _sessionCapture.StopAndAbsorb();
-            }
-            catch
-            {
-                // best-effort on teardown
-            }
-        }
-
         _wasGameRunning = false;
 
         if (!IsGameRunning)
@@ -724,63 +755,18 @@ public partial class MainViewModel : ViewModelBase
 
     private void RefreshGameRunningState()
     {
-        var running = GameProcessService.IsRunning(GamePath);
-
-        if (running && !_sessionCapture.IsActive && GamePathValidator.IsValid(GamePath))
-        {
-            _sessionCapture.Start(ActiveProfileId, GamePath);
-            _wasGameRunning = true;
-        }
+        var running = GameProcessService.IsRunning(GamePath, _vfs.DriveLetter);
 
         if (running == IsGameRunning)
             return;
 
-        var stopped = _wasGameRunning && !running;
         _wasGameRunning = running;
         IsGameRunning = running;
         UpdateInstalledModToggleAvailability();
         OnPropertyChanged(nameof(GameRunningToggleTooltip));
 
-        if (stopped)
-            _ = AbsorbRuntimeChangesAsync();
-
         if (IsInstalledPage && !IsLoading)
             UpdateStatus();
-    }
-
-    private async Task AbsorbRuntimeChangesAsync()
-    {
-        if (!_sessionCapture.IsActive && string.IsNullOrWhiteSpace(_sessionCapture.ActiveProfileId))
-        {
-            // Session may still be active if Start was called — StopAndAbsorb handles empty.
-        }
-
-        try
-        {
-            StatusText = L.Get(Main.CapturingRuntimeChanges);
-            var result = await Task.Run(() => _sessionCapture.StopAndAbsorb());
-            if (!result.Success)
-            {
-                StatusText = L.Get(Main.CaptureRuntimeFailed, result.Error ?? "");
-                return;
-            }
-
-            var summary = result.SummaryMessage();
-            if (!string.IsNullOrWhiteSpace(summary))
-            {
-                StatusText = summary;
-                if (IsInstalledPage)
-                    await LoadInstalledModsAsync();
-            }
-            else
-            {
-                UpdateStatus();
-            }
-        }
-        catch (Exception ex)
-        {
-            StatusText = L.Get(Main.CaptureRuntimeFailed, ex.Message);
-        }
     }
 
     private void UpdateInstalledModToggleAvailability()
@@ -1130,6 +1116,7 @@ public partial class MainViewModel : ViewModelBase
     protected override void OnLocalizationChanged()
     {
         RefreshProfileList();
+        NotifyVfsMountChanged();
         _ = RefreshModsAsync();
     }
 }

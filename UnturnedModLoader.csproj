@@ -14,9 +14,20 @@
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
+  <!-- winfsp-reference is a reference-only submodule (headers); exclude from compilation. -->
+  <ItemGroup>
+    <Compile Remove="winfsp-reference\**" />
+    <None Remove="winfsp-reference\**" />
+    <EmbeddedResource Remove="winfsp-reference\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Update="I18n\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Update="WinFsp\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="runtimes\win-x64\native\winfsp-x64.dll" CopyToOutputDirectory="PreserveNewest" Link="runtimes\win-x64\native\winfsp-x64.dll" />
   </ItemGroup>
 
   <ItemGroup>
@@ -34,5 +45,6 @@
     <PackageReference Include="Lucide.Avalonia" Version="0.2.12" />
     <PackageReference Include="Markdig" Version="1.3.2" />
     <PackageReference Include="Velopack" Version="1.2.0" />
+    <PackageReference Include="winfsp.net" Version="2.2.26194" />
   </ItemGroup>
 </Project>

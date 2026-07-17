@@ -20,7 +20,7 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly FolderPickerService _folderPicker;
     private readonly AuthSessionService _session;
     private readonly ProfileService _profileService;
-    private readonly GameOverlayService _overlayService;
+    private readonly VirtualFilesystemService _vfs;
     private readonly Window _owner;
     private string _currentRole = "";
 
@@ -81,6 +81,9 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     private string _winFspActionStatus = "";
 
+    [ObservableProperty]
+    private string _mountStatusText = "";
+
     public bool IsLoggedIn => _settings.IsLoggedIn;
     public IReadOnlyList<string> LocaleOptions { get; } = ["zh", "en"];
     public bool IsZhLocaleSelected => SelectedLocale == "zh";
@@ -103,7 +106,7 @@ public partial class SettingsViewModel : ViewModelBase
         FolderPickerService folderPicker,
         AuthSessionService session,
         ProfileService profileService,
-        GameOverlayService overlayService,
+        VirtualFilesystemService vfs,
         Window owner,
         string? initialSection = null)
     {
@@ -112,7 +115,7 @@ public partial class SettingsViewModel : ViewModelBase
         _folderPicker = folderPicker;
         _session = session;
         _profileService = profileService;
-        _overlayService = overlayService;
+        _vfs = vfs;
         _owner = owner;
 
         _gamePath = settings.GamePath;
@@ -293,7 +296,7 @@ public partial class SettingsViewModel : ViewModelBase
         if (profile is null)
             return;
 
-        if (GameProcessService.IsRunning(_settings.GamePath))
+        if (GameProcessService.IsRunning(_settings.GamePath, _vfs.DriveLetter))
         {
             ProfileStatus = L.Get(ProfileKeys.GameRunning);
             return;
@@ -312,7 +315,7 @@ public partial class SettingsViewModel : ViewModelBase
         if (profile is null || profile.IsBuiltIn)
             return;
 
-        if (GameProcessService.IsRunning(_settings.GamePath))
+        if (GameProcessService.IsRunning(_settings.GamePath, _vfs.DriveLetter))
         {
             ProfileStatus = L.Get(ProfileKeys.GameRunning);
             return;
@@ -471,12 +474,10 @@ public partial class SettingsViewModel : ViewModelBase
 
         if (IsPathValid &&
             !string.Equals(previous, GamePath, StringComparison.OrdinalIgnoreCase) &&
-            !GameProcessService.IsRunning(GamePath))
+            !GameProcessService.IsRunning(GamePath, _vfs.DriveLetter))
         {
-            // Tear down overlay on the previous install, then apply to the new path.
-            if (!string.IsNullOrWhiteSpace(previous) && GamePathValidator.IsValid(previous))
-                _overlayService.UnapplyAll(previous, ignoreGameRunning: true);
-
+            // Repoint the volume's lower layer at the new game install (no remount).
+            _vfs.SetLowerRoot(GamePath);
             _profileService.SyncActiveMounts();
         }
     }
@@ -523,6 +524,16 @@ public partial class SettingsViewModel : ViewModelBase
                 WinFspStatusText = L.Get(WinFspKeys.NotApplicable);
                 break;
         }
+
+        RefreshMountStatus();
+    }
+
+    /// <summary>Reflects the live WinFsp virtual-drive mount state into the UI.</summary>
+    private void RefreshMountStatus()
+    {
+        MountStatusText = _vfs.IsMounted
+            ? L.Get(Main.MountedAt, _vfs.MountPoint ?? "")
+            : L.Get(Main.NotMounted);
     }
 
     private void UpdateGamePathStatus()
@@ -574,6 +585,7 @@ public partial class SettingsViewModel : ViewModelBase
     {
         UpdateGamePathStatus();
         RefreshWinFspStatus();
+        RefreshMountStatus();
         if (!string.IsNullOrWhiteSpace(_currentRole))
             RoleLabel = MapRoleLabel(_currentRole);
         RefreshProfiles();
