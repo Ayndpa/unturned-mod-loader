@@ -557,7 +557,8 @@ public partial class MainViewModel : ViewModelBase
                             title,
                             message,
                             confirmText: L.Get(I18n.Settings.GoToDownload),
-                            cancelText: L.Get(I18n.Common.Cancel)
+                            cancelText: L.Get(I18n.Common.Cancel),
+                            useMarkdown: true
                         );
 
                         if (confirm)

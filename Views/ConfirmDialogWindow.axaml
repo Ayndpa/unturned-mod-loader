@@ -1,19 +1,20 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:UnturnedModLoader.ViewModels"
+        xmlns:controls="using:UnturnedModLoader.Controls"
         xmlns:c="https://codewf.com"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        d:DesignWidth="460" d:DesignHeight="220"
+        d:DesignWidth="520" d:DesignHeight="280"
         x:Class="UnturnedModLoader.Views.ConfirmDialogWindow"
         x:DataType="vm:ConfirmDialogViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="{Binding Title}"
-        Width="460"
+        Width="520"
         SizeToContent="Height"
         MinHeight="180"
-        MaxHeight="420"
+        MaxHeight="560"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BgCanvasBrush}">
@@ -31,13 +32,24 @@
                        Foreground="{StaticResource InkBrush}" />
 
             <ScrollViewer Grid.Row="1"
-                          MaxHeight="220"
-                          VerticalScrollBarVisibility="Auto">
-                <TextBlock Text="{Binding Message}"
-                           FontSize="13"
-                           Foreground="{StaticResource InkSoftBrush}"
-                           TextWrapping="Wrap"
-                           LineHeight="20" />
+                          MaxHeight="360"
+                          HorizontalAlignment="Stretch"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <Panel HorizontalAlignment="Stretch">
+                    <TextBlock Text="{Binding Message}"
+                               FontSize="13"
+                               Foreground="{StaticResource InkSoftBrush}"
+                               TextWrapping="Wrap"
+                               LineHeight="20"
+                               HorizontalAlignment="Stretch"
+                               IsVisible="{Binding !IsMarkdown}" />
+                    <controls:MarkdownContentControl Markdown="{Binding Message}"
+                                                     ForegroundBrush="{StaticResource InkSoftBrush}"
+                                                     MutedForegroundBrush="{StaticResource MidGrayBrush}"
+                                                     HorizontalAlignment="Stretch"
+                                                     IsVisible="{Binding IsMarkdown}" />
+                </Panel>
             </ScrollViewer>
 
             <StackPanel Grid.Row="2"

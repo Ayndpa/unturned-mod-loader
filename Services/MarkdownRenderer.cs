@@ -38,6 +38,7 @@ public static class MarkdownRenderer
         var panel = new StackPanel
         {
             Spacing = 10,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
         };
 
         foreach (var block in document)
@@ -94,6 +95,7 @@ public static class MarkdownRenderer
             FontWeight = FontWeight.SemiBold,
             Foreground = foreground,
             TextWrapping = TextWrapping.Wrap,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             Margin = new Thickness(0, heading.Level <= 2 ? 4 : 0, 0, 0),
         };
     }
@@ -107,7 +109,11 @@ public static class MarkdownRenderer
 
     private static Control RenderList(ListBlock list, IBrush foreground, IBrush mutedForeground)
     {
-        var panel = new StackPanel { Spacing = 6 };
+        var panel = new StackPanel
+        {
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
 
         var index = 1;
         foreach (var item in list)
@@ -115,7 +121,11 @@ public static class MarkdownRenderer
             if (item is not ListItemBlock listItem)
                 continue;
 
-            var itemPanel = new StackPanel { Spacing = 4 };
+            var itemPanel = new StackPanel
+            {
+                Spacing = 4,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+            };
             var prefix = list.IsOrdered ? $"{index}." : "•";
             index++;
 
@@ -123,22 +133,29 @@ public static class MarkdownRenderer
             {
                 if (block is ParagraphBlock paragraph)
                 {
-                    var row = new StackPanel
+                    // Grid (Auto + *) so list text measures against remaining width and wraps.
+                    // Horizontal StackPanel gives infinite width, so text never wraps and gets clipped.
+                    var row = new Grid
                     {
-                        Orientation = Orientation.Horizontal,
-                        Spacing = 8,
+                        ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+                        HorizontalAlignment = HorizontalAlignment.Stretch,
                     };
 
-                    row.Children.Add(new TextBlock
+                    var prefixBlock = new TextBlock
                     {
                         Text = prefix,
                         Foreground = mutedForeground,
                         FontSize = 13,
                         MinWidth = 18,
-                    });
+                        Margin = new Thickness(0, 0, 8, 0),
+                    };
+                    Grid.SetColumn(prefixBlock, 0);
 
                     var textBlock = CreateTextBlock(foreground);
                     AppendInlines(textBlock.Inlines!, paragraph.Inline, foreground);
+                    Grid.SetColumn(textBlock, 1);
+
+                    row.Children.Add(prefixBlock);
                     row.Children.Add(textBlock);
                     itemPanel.Children.Add(row);
                     prefix = "";
@@ -147,7 +164,10 @@ public static class MarkdownRenderer
                 {
                     var nested = RenderBlock(block, foreground, mutedForeground);
                     if (nested is not null)
+                    {
+                        nested.Margin = new Thickness(26, 0, 0, 0);
                         itemPanel.Children.Add(nested);
+                    }
                 }
             }
 
@@ -173,6 +193,7 @@ public static class MarkdownRenderer
             BorderBrush = mutedForeground,
             BorderThickness = new Thickness(3, 0, 0, 0),
             Padding = new Thickness(12, 0, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             Child = content,
         };
     }
@@ -187,6 +208,7 @@ public static class MarkdownRenderer
             Opacity = 0.95,
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(12, 10),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
             Child = new TextBlock
             {
                 Text = code?.TrimEnd() ?? "",
@@ -194,6 +216,7 @@ public static class MarkdownRenderer
                 FontSize = 12,
                 Foreground = foreground,
                 TextWrapping = TextWrapping.Wrap,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
             },
         };
     }
@@ -268,6 +291,7 @@ public static class MarkdownRenderer
             Foreground = foreground,
             TextWrapping = TextWrapping.Wrap,
             LineHeight = 20,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
         };
 
     private static void AppendInlines(

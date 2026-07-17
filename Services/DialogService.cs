@@ -11,9 +11,10 @@ public static class DialogService
         string title,
         string message,
         string? confirmText = null,
-        string? cancelText = null)
+        string? cancelText = null,
+        bool useMarkdown = false)
     {
-        var viewModel = new ConfirmDialogViewModel(title, message, confirmText, cancelText);
+        var viewModel = new ConfirmDialogViewModel(title, message, confirmText, cancelText, useMarkdown);
         var dialog = new ConfirmDialogWindow { DataContext = viewModel };
         var result = false;
 
