@@ -42,6 +42,11 @@ public sealed class LocalizedString
     }
 
     internal void SetValues(Dictionary<string, string> values) => _values = values;
+
+    public override string ToString()
+    {
+        return Pick(UnturnedModLoader.Services.LocalizationService.CurrentLocaleCode);
+    }
 }
 
 public sealed class LocalizedStringJsonConverter : JsonConverter<LocalizedString>

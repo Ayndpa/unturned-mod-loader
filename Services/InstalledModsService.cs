@@ -131,6 +131,15 @@ public sealed class InstalledModsService
         return true;
     }
 
+    public bool IsInstalled(int remoteId)
+    {
+        if (string.IsNullOrWhiteSpace(_manifestsDir))
+            return false;
+
+        var path = ManifestPath(remoteId);
+        return File.Exists(path);
+    }
+
     private string ManifestPath(int remoteId) =>
         Path.Combine(_manifestsDir, $"{remoteId}.json");
 

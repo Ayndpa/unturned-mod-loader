@@ -141,6 +141,11 @@ public sealed class ModDownloadService
                 continue;
             visited.Add(dep.Id);
 
+            if (_installedMods is not null && _installedMods.IsInstalled(dep.Id))
+            {
+                continue;
+            }
+
             var depTitle = LocalizedContent.Pick(dep.Title, LocalizationService.CurrentLocaleCode);
             if (string.IsNullOrWhiteSpace(depTitle))
                 depTitle = $"#{dep.Id}";

@@ -267,6 +267,35 @@ public partial class ModDetailViewModel : ViewModelBase
     [RelayCommand]
     private void Close() => CloseRequested?.Invoke();
 
+    [RelayCommand]
+    private async Task OpenDependencyDetailsAsync(RemoteModDependency? dependency)
+    {
+        if (dependency is null)
+            return;
+
+        var viewModel = new ModDetailViewModel(
+            _imageService,
+            _apiBaseUrl,
+            _modsApi,
+            _settings,
+            _owner,
+            downloadService: _downloadService,
+            getInstallModulesFolder: _getInstallModulesFolder);
+
+        var dialog = new UnturnedModLoader.Views.ModDetailWindow { DataContext = viewModel };
+        var downloadCompleted = false;
+
+        viewModel.CloseRequested += () => dialog.Close();
+        viewModel.DownloadCompleted += () => downloadCompleted = true;
+        _ = viewModel.LoadAsync(dependency.Id);
+        await dialog.ShowDialog(_owner);
+
+        if (downloadCompleted)
+        {
+            DownloadCompleted?.Invoke();
+        }
+    }
+
     partial void OnIsLoadingChanged(bool value)
     {
         OnPropertyChanged(nameof(ShowContent));
