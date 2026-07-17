@@ -131,7 +131,6 @@ public static class Main
     public const string InstalledMods = "Localization.Main.InstalledMods";
     public const string Categories = "Localization.Main.Categories";
     public const string SearchPlaceholder = "Localization.Main.SearchPlaceholder";
-    public const string AddMod = "Localization.Main.AddMod";
     public const string Reload = "Localization.Main.Reload";
     public const string Details = "Localization.Main.Details";
     public const string Remove = "Localization.Main.Remove";

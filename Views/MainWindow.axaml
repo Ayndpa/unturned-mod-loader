@@ -267,11 +267,6 @@
                                 Spacing="8"
                                 Margin="12,0,0,0">
                         <Button Classes="icon"
-                                ToolTip.Tip="{c:I18n {x:Static i18n:Main.AddMod}}"
-                                IsVisible="{Binding IsBrowsePage}">
-                            <LucideIcon Kind="Plus" Size="18" />
-                        </Button>
-                        <Button Classes="icon"
                                 ToolTip.Tip="{c:I18n {x:Static i18n:Common.Refresh}}"
                                 Command="{Binding RefreshModsCommand}"
                                 IsEnabled="{Binding !IsLoading}">
