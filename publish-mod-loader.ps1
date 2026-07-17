@@ -101,6 +101,9 @@ $publishArgs = @(
     '-p:SelfContained=true'
     "-p:Version=$Version"
     '-p:PublishSingleFile=true'
+    # Keep managed assemblies extractable so third-party libs that read
+    # Assembly.Location (notably winfsp-msil CheckVersion) still work.
+    '-p:IncludeAllContentForSelfExtract=true'
     '-p:IncludeNativeLibrariesForSelfExtract=true'
     '-p:EnableCompressionInSingleFile=true'
     '-p:DebugType=none'

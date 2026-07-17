@@ -84,35 +84,55 @@ public sealed class VirtualFilesystemService : IDisposable
         if (IsMounted)
             return MountResult.Ok();
 
-        var status = WinFspService.GetStatus();
-        if (status.State != WinFspInstallState.Installed)
-            return MountResult.Fail(status.Detail);
-
-        var drive = DriveLetterClaimer.FindFree();
-        if (drive is null)
-            return MountResult.Fail("No free drive letter available for the virtual drive.");
-
-        _host = new FileSystemHost(_fs);
-        _host.SectorSize = 4096;
-        _host.SectorsPerAllocationUnit = 1;
-        _host.MaxComponentLength = 255;
-        _host.FileInfoTimeout = 1000; // 1s metadata cache - key performance lever
-        _host.CasePreservedNames = true;
-        _host.UnicodeOnDisk = true;
-        _host.PersistentAcls = true;
-        _host.FileSystemName = "UnturnedModLoader";
-
-        // MountPoint must be in "X:" form (no trailing backslash) per WinFsp convention.
-        var nt = _host.Mount(drive.Value + ":", null, false, 0);
-        if (nt != 0)
+        try
         {
-            _host.Dispose();
-            _host = null;
-            return MountResult.Fail($"WinFsp mount failed (NTSTATUS 0x{unchecked((uint)nt):X8}).");
-        }
+            var status = WinFspService.GetStatus();
+            if (status.State != WinFspInstallState.Installed)
+                return MountResult.Fail(status.Detail);
 
-        _driveLetter = drive.Value;
-        return MountResult.Ok();
+            var drive = DriveLetterClaimer.FindFree();
+            if (drive is null)
+                return MountResult.Fail("No free drive letter available for the virtual drive.");
+
+            _host = new FileSystemHost(_fs);
+            _host.SectorSize = 4096;
+            _host.SectorsPerAllocationUnit = 1;
+            _host.MaxComponentLength = 255;
+            _host.FileInfoTimeout = 1000; // 1s metadata cache - key performance lever
+            _host.CasePreservedNames = true;
+            _host.UnicodeOnDisk = true;
+            _host.PersistentAcls = true;
+            _host.FileSystemName = "UnturnedModLoader";
+
+            // MountPoint must be in "X:" form (no trailing backslash) per WinFsp convention.
+            var nt = _host.Mount(drive.Value + ":", null, false, 0);
+            if (nt != 0)
+            {
+                _host.Dispose();
+                _host = null;
+                return MountResult.Fail($"WinFsp mount failed (NTSTATUS 0x{unchecked((uint)nt):X8}).");
+            }
+
+            _driveLetter = drive.Value;
+            return MountResult.Ok();
+        }
+        catch (Exception ex)
+        {
+            // WinFsp.net can throw TypeInitializationException when bundled as a single-file
+            // app (Assembly.Location is empty). Never let that take down the whole process.
+            try
+            {
+                _host?.Dispose();
+            }
+            catch
+            {
+                // ignore dispose failures during cleanup
+            }
+
+            _host = null;
+            _driveLetter = '\0';
+            return MountResult.Fail($"WinFsp mount crashed: {ex.GetBaseException().Message}");
+        }
     }
 
     /// <summary>Atomically swaps the upper (profile overlay) root.</summary>

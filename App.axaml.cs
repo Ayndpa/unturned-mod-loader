@@ -44,7 +44,9 @@ public partial class App : Application
             LeftoverJunctionCleanup.Run(settings.GamePath);
 
             // Mount the virtual drive for the whole process lifetime (non-fatal on failure).
-            _ = vfs.Mount();
+            // Mount() itself swallows exceptions; keep the call fire-and-forget safe.
+            try { _ = vfs.Mount(); }
+            catch { /* never block UI startup on VFS */ }
 
             desktop.ShutdownRequested += (_, _) => vfs.Dispose();
 

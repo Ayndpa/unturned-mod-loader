@@ -5,10 +5,19 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <AssemblyName>UnturnedModLoader</AssemblyName>
     <Product>Unturned Mod Loader</Product>
   </PropertyGroup>
+
+  <!--
+    winfsp-msil's Fsp.Interop.Api.CheckVersion reads Assembly.GetExecutingAssembly().Location
+    and crashes with "The path is empty" when the assembly is bundled into a single-file
+    publish (Location is ""). Keep it as a real side-by-side DLL so version checks work.
+  -->
+  <ItemGroup>
+    <ExcludeFromSingleFile Include="$(NuGetPackageRoot)winfsp.net\**\winfsp-msil.dll" />
+  </ItemGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
