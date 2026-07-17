@@ -11,9 +11,9 @@
         x:DataType="vm:OnboardingViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="{c:I18n {x:Static i18n:Onboarding.Title}}"
-        Width="560" Height="520"
-        MinWidth="480" MinHeight="460"
-        CanResize="False"
+        Width="560" Height="560"
+        MinWidth="480" MinHeight="480"
+        CanResize="True"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BgCanvasBrush}">
 
@@ -25,7 +25,7 @@
             Padding="32,28">
         <Grid RowDefinitions="Auto,*,Auto">
 
-            <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,24">
+            <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16">
                 <StackPanel Orientation="Horizontal" Spacing="10">
                     <Border Width="32" Height="32"
                             CornerRadius="8"
@@ -47,7 +47,12 @@
                            Foreground="{StaticResource MidGrayBrush}" />
             </StackPanel>
 
-            <Panel Grid.Row="1">
+            <!-- Scroll so dense steps (WinFsp install) never clip under the footer. -->
+            <ScrollViewer Grid.Row="1"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto"
+                          AllowAutoHide="True">
+            <Panel>
 
                 <!-- Step 1: Welcome -->
                 <StackPanel IsVisible="{Binding IsWelcomeStep}" Spacing="14" VerticalAlignment="Center">
@@ -141,41 +146,46 @@
                             CornerRadius="8"
                             Padding="12,10"
                             MinHeight="44">
-                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                            <LucideIcon Kind="CircleCheckBig"
-                                        Size="16"
-                                        Foreground="Green"
-                                        IsVisible="{Binding IsWinFspInstalled}" />
-                            <LucideIcon Kind="CircleAlert"
-                                        Size="16"
-                                        Foreground="{StaticResource MidGrayBrush}"
-                                        IsVisible="{Binding !IsWinFspInstalled}" />
-                            <TextBlock Text="{Binding WinFspStatusText}"
+                        <Grid ColumnDefinitions="Auto,*">
+                            <Panel Grid.Column="0" Width="16" Height="16" Margin="0,1,10,0" VerticalAlignment="Top">
+                                <LucideIcon Kind="CircleCheckBig"
+                                            Size="16"
+                                            Foreground="Green"
+                                            IsVisible="{Binding IsWinFspInstalled}" />
+                                <LucideIcon Kind="CircleAlert"
+                                            Size="16"
+                                            Foreground="{StaticResource MidGrayBrush}"
+                                            IsVisible="{Binding !IsWinFspInstalled}" />
+                            </Panel>
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding WinFspStatusText}"
                                        FontSize="12"
                                        Foreground="{StaticResource InkSoftBrush}"
                                        TextWrapping="Wrap"
                                        VerticalAlignment="Center" />
-                        </StackPanel>
+                        </Grid>
                     </Border>
 
                     <!-- Download-mirror picker (speed-tested, fastest auto-selected) -->
                     <StackPanel Spacing="8" IsVisible="{Binding CanInstallWinFsp}">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="{c:I18n {x:Static i18n:WinFspKeys.DownloadSource}}"
-                                       FontSize="12"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource MidGrayBrush}"
-                                       VerticalAlignment="Center" />
-                            <ComboBox ItemsSource="{Binding MirrorPicker.Options}"
+                        <TextBlock Text="{c:I18n {x:Static i18n:WinFspKeys.DownloadSource}}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource MidGrayBrush}" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <ComboBox Grid.Column="0"
+                                      ItemsSource="{Binding MirrorPicker.Options}"
                                       SelectedItem="{Binding MirrorPicker.SelectedOption}"
-                                      MinWidth="220">
+                                      HorizontalAlignment="Stretch"
+                                      MinWidth="0">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate DataType="vm:WinFspMirrorOptionViewModel">
-                                        <TextBlock Text="{Binding DisplayText}" FontSize="12" />
+                                        <TextBlock Text="{Binding DisplayText}" FontSize="12" TextTrimming="CharacterEllipsis" />
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
-                            <Button Classes="iconText"
+                            <Button Grid.Column="1"
+                                    Classes="iconText"
                                     Command="{Binding MirrorPicker.TestCommand}"
                                     IsEnabled="{Binding !MirrorPicker.IsTesting}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -183,10 +193,11 @@
                                     <TextBlock Text="{c:I18n {x:Static i18n:WinFspKeys.Retest}}" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
-                        </StackPanel>
+                        </Grid>
                         <TextBlock Text="{Binding MirrorPicker.TestStatus}"
                                    FontSize="12"
-                                   Foreground="{StaticResource MidGrayBrush}" />
+                                   Foreground="{StaticResource MidGrayBrush}"
+                                   TextWrapping="Wrap" />
                     </StackPanel>
 
                     <!-- Action buttons -->
@@ -223,12 +234,14 @@
                                Foreground="{StaticResource MidGrayBrush}"
                                TextWrapping="Wrap"
                                LineHeight="18"
-                               Opacity="0.7" />
+                               Opacity="0.7"
+                               Margin="0,0,0,4" />
                 </StackPanel>
 
             </Panel>
+            </ScrollViewer>
 
-            <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Margin="0,24,0,0">
+            <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Margin="0,16,0,0">
                 <Button Grid.Column="0"
                         Classes="ghost"
                         Content="{c:I18n {x:Static i18n:Common.Back}}"
