@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using UnturnedModLoader.Models;
 using UnturnedModLoader.Services;
 using UnturnedModLoader.Services.Api;
@@ -12,6 +13,9 @@ namespace UnturnedModLoader;
 
 public partial class App : Application
 {
+    private MainViewModel? _mainViewModel;
+    private Window? _mainWindow;
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -48,12 +52,71 @@ public partial class App : Application
                 ShowOnboarding(desktop, settingsService, settings, profileService, vfs);
             else
                 ShowMain(desktop, settingsService, settings, profileService, vfs);
+
+            // Accept activation / install intents from secondary process launches
+            // (browser unmod:// clicks while we are already running).
+            if (Program.SingleInstance is { } singleInstance)
+            {
+                singleInstance.Activated += args =>
+                    Dispatcher.UIThread.Post(() => HandleSecondaryActivation(args));
+                singleInstance.StartListening();
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
-    private static void ShowOnboarding(
+    private void HandleSecondaryActivation(string[] args)
+    {
+        // Bring the existing window to the foreground first.
+        ActivateMainWindow();
+
+        // If the secondary launch carried an install intent, act on it.
+        int? modId = null;
+        foreach (var arg in args)
+        {
+            if (string.Equals(arg, "--install", StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (ProtocolRegistrar.TryParseInstallIntent(arg, out var id))
+            {
+                modId = id;
+                break;
+            }
+        }
+
+        if (modId is not { } installId)
+            return;
+
+        if (_mainViewModel is { } vm)
+        {
+            vm.ConsumePendingInstall(installId);
+            return;
+        }
+
+        // Onboarding still open — park the intent for ShowMain to consume.
+        Program.PendingInstallModId = installId;
+    }
+
+    private void ActivateMainWindow()
+    {
+        var window = _mainWindow
+            ?? (ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+        if (window is null)
+            return;
+
+        if (!window.IsVisible)
+            window.Show();
+
+        if (window.WindowState == WindowState.Minimized)
+            window.WindowState = WindowState.Normal;
+
+        window.Activate();
+        window.Topmost = true;
+        window.Topmost = false;
+        window.Focus();
+    }
+
+    private void ShowOnboarding(
         IClassicDesktopStyleApplicationLifetime desktop,
         SettingsService settingsService,
         AppSettings settings,
@@ -73,9 +136,10 @@ public partial class App : Application
 
         onboardingWindow.DataContext = viewModel;
         desktop.MainWindow = onboardingWindow;
+        _mainWindow = onboardingWindow;
     }
 
-    private static void ShowMain(
+    private void ShowMain(
         IClassicDesktopStyleApplicationLifetime desktop,
         SettingsService settingsService,
         AppSettings settings,
@@ -85,6 +149,7 @@ public partial class App : Application
         var api = new ApiClientBundle(settings);
         var mainWindow = CreateMainWindow(settingsService, settings, api, profileService, vfs);
         desktop.MainWindow = mainWindow;
+        _mainWindow = mainWindow;
         mainWindow.Show();
 
         // Register the unmod:// scheme so future browser installs can launch us.
@@ -101,8 +166,10 @@ public partial class App : Application
         // and re-open the onboarding flow.
         if (mainWindow.DataContext is MainViewModel mainVm)
         {
+            _mainViewModel = mainVm;
             mainVm.OnboardingResetRequested += () =>
             {
+                _mainViewModel = null;
                 mainWindow.Close();
                 ShowOnboarding(desktop, settingsService, settings, profileService, vfs);
             };

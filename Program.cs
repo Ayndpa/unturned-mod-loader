@@ -1,5 +1,6 @@
 using System;
 using Avalonia;
+using UnturnedModLoader.Services;
 using Velopack;
 
 namespace UnturnedModLoader;
@@ -12,6 +13,12 @@ sealed class Program
     /// </summary>
     public static int? PendingInstallModId { get; internal set; }
 
+    /// <summary>
+    /// Held for the process lifetime so secondary launches can forward args to us.
+    /// Disposed on process exit.
+    /// </summary>
+    internal static SingleInstanceService? SingleInstance { get; private set; }
+
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
     // yet and stuff might break.
@@ -21,9 +28,23 @@ sealed class Program
         // Must run before any other startup logic (install / update / uninstall hooks).
         VelopackApp.Build().Run();
 
+        // Single-instance gate: if another process already owns the mutex, forward our args
+        // (including unmod://install/{id}) and exit without spinning up a second UI.
+        SingleInstance = SingleInstanceService.TryAcquire(args);
+        if (SingleInstance is null)
+            return;
+
         PendingInstallModId = ParseInstallIntent(args);
 
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        try
+        {
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+        finally
+        {
+            SingleInstance.Dispose();
+            SingleInstance = null;
+        }
     }
 
     private static int? ParseInstallIntent(string[] args)
