@@ -21,7 +21,8 @@
       "Settings": "Settings",
       "NoDescription": "No description",
       "Confirm": "Confirm",
-      "Cancel": "Cancel"
+      "Cancel": "Cancel",
+      "OpenInBrowser": "Open in browser"
     },
     "Locale": {
       "Title": "Display Language",
@@ -295,7 +296,6 @@
       "Delete": "Delete",
       "SetActive": "Use this profile",
       "OpenFolder": "Open folder",
-      "BuiltIn": "Built-in",
       "Status": "Status",
       "GameRunning": "Quit the game before switching profiles.",
       "CreateFailed": "Could not create profile.",

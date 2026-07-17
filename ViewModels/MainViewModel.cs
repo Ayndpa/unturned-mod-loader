@@ -79,7 +79,7 @@ public partial class MainViewModel : ViewModelBase
     private string _activeProfileName = "";
 
     [ObservableProperty]
-    private string _activeProfileId = GameProfile.DefaultBuiltInId;
+    private string _activeProfileId = "";
 
     public ObservableCollection<ModItemViewModel> Mods { get; } = [];
     public ObservableCollection<InstalledModItemViewModel> InstalledMods { get; } = [];
@@ -206,6 +206,40 @@ public partial class MainViewModel : ViewModelBase
         if (mod is null)
             return;
         await OpenModDetailsByIdAsync(mod.Id, autoInstall: false);
+    }
+
+    /// <summary>Opens the mod's web detail page ({BaseUrl}/mods/{id}) in the system browser.</summary>
+    [RelayCommand]
+    private void OpenModInBrowser(ModItemViewModel? mod)
+    {
+        if (mod is null)
+            return;
+
+        var url = $"{_modsApi.BaseUrl.TrimEnd('/')}/mods/{mod.Id}";
+        try
+        {
+            if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
+                    System.Runtime.InteropServices.OSPlatform.Windows))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url)
+                {
+                    UseShellExecute = true,
+                });
+            }
+            else if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
+                         System.Runtime.InteropServices.OSPlatform.OSX))
+            {
+                System.Diagnostics.Process.Start("open", url);
+            }
+            else
+            {
+                System.Diagnostics.Process.Start("xdg-open", url);
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusText = ex.Message;
+        }
     }
 
     /// <summary>

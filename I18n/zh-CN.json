@@ -21,7 +21,8 @@
       "Settings": "设置",
       "NoDescription": "暂无描述",
       "Confirm": "确认",
-      "Cancel": "取消"
+      "Cancel": "取消",
+      "OpenInBrowser": "在浏览器中打开"
     },
     "Locale": {
       "Title": "界面语言",
@@ -295,7 +296,6 @@
       "Delete": "删除",
       "SetActive": "使用此档案",
       "OpenFolder": "打开目录",
-      "BuiltIn": "内置",
       "Status": "状态",
       "GameRunning": "请先退出游戏再切换档案。",
       "CreateFailed": "无法创建档案。",

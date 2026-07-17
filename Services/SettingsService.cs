@@ -57,7 +57,7 @@ public class SettingsService
                     .FirstOrDefault(id => !string.IsNullOrWhiteSpace(id)
                                           && !string.Equals(id, "vanilla", StringComparison.OrdinalIgnoreCase))
                 : null;
-            settings.ActiveProfileId = first ?? GameProfile.DefaultBuiltInId;
+            settings.ActiveProfileId = first ?? "";
         }
 
         if (Directory.Exists(AppPaths.ProfilesRoot))

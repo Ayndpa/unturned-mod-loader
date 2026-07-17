@@ -36,9 +36,6 @@ public sealed class ProfileService
         if (string.IsNullOrWhiteSpace(id))
             return null;
 
-        if (string.Equals(id, GameProfile.DefaultBuiltInId, StringComparison.OrdinalIgnoreCase))
-            return GameProfile.CreateBuiltInDefault(GetDefaultDisplayName());
-
         var path = AppPaths.ProfileMetaPath(id);
         if (!File.Exists(path))
             return null;
@@ -46,13 +43,7 @@ public sealed class ProfileService
         try
         {
             var json = File.ReadAllText(path);
-            var profile = JsonSerializer.Deserialize<GameProfile>(json, JsonOptions);
-            if (profile is null)
-                return null;
-
-            profile.IsBuiltIn = profile.IsBuiltIn
-                                || string.Equals(profile.Id, GameProfile.DefaultBuiltInId, StringComparison.OrdinalIgnoreCase);
-            return profile;
+            return JsonSerializer.Deserialize<GameProfile>(json, JsonOptions);
         }
         catch
         {
@@ -64,23 +55,14 @@ public sealed class ProfileService
     {
         var list = new List<GameProfile>();
 
-        var builtIn = GetById(GameProfile.DefaultBuiltInId);
-        if (builtIn is not null)
-            list.Add(builtIn);
-        else if (Directory.Exists(Path.Combine(AppPaths.ProfilesRoot, GameProfile.DefaultBuiltInId)))
-        {
-            builtIn = GameProfile.CreateBuiltInDefault(GetDefaultDisplayName());
-            SaveMeta(builtIn);
-            list.Add(builtIn);
-        }
-
         if (!Directory.Exists(AppPaths.ProfilesRoot))
             return list;
 
         foreach (var dir in Directory.EnumerateDirectories(AppPaths.ProfilesRoot))
         {
             var id = Path.GetFileName(dir);
-            if (string.Equals(id, GameProfile.DefaultBuiltInId, StringComparison.OrdinalIgnoreCase)
+            // Legacy leftover folder from pre-profile layout.
+            if (string.IsNullOrWhiteSpace(id)
                 || string.Equals(id, "vanilla", StringComparison.OrdinalIgnoreCase))
                 continue;
 
@@ -100,8 +82,7 @@ public sealed class ProfileService
         }
 
         return list
-            .OrderBy(p => p.IsBuiltIn ? 0 : 1)
-            .ThenBy(p => p.CreatedAt)
+            .OrderBy(p => p.CreatedAt)
             .ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
@@ -113,7 +94,7 @@ public sealed class ProfileService
         var profiles = List();
         if (profiles.Count == 0)
         {
-            var created = Create(GetDefaultDisplayName(), asBuiltIn: true, id: GameProfile.DefaultBuiltInId);
+            var created = Create(GetDefaultDisplayName());
             _settings.ActiveProfileId = created.Id;
             _settingsService.Save(_settings);
             return;
@@ -127,25 +108,10 @@ public sealed class ProfileService
         }
     }
 
-    public GameProfile Create(string name, bool asBuiltIn = false, string? id = null)
+    public GameProfile Create(string name)
     {
         var trimmed = string.IsNullOrWhiteSpace(name) ? GetDefaultDisplayName() : name.Trim();
-        GameProfile profile;
-        if (asBuiltIn && !string.IsNullOrWhiteSpace(id))
-        {
-            profile = new GameProfile
-            {
-                Id = id,
-                Name = trimmed,
-                IsBuiltIn = true,
-                CreatedAt = 0,
-            };
-        }
-        else
-        {
-            profile = GameProfile.CreateUser(trimmed);
-        }
-
+        var profile = GameProfile.CreateUser(trimmed);
         AppPaths.EnsureProfileLayout(profile.Id);
         SaveMeta(profile);
         return profile;
@@ -168,18 +134,25 @@ public sealed class ProfileService
         if (profile is null)
             return MountResult.Fail("Profile not found.");
 
-        if (profile.IsBuiltIn)
-            return MountResult.Fail("Cannot delete the built-in profile.");
+        var wasActive = string.Equals(ActiveProfileId, id, StringComparison.OrdinalIgnoreCase);
+        var switchedAway = false;
 
-        if (List().Count <= 1)
-            return MountResult.Fail("Cannot delete the last profile.");
-
-        if (string.Equals(ActiveProfileId, id, StringComparison.OrdinalIgnoreCase))
+        if (wasActive)
         {
-            var next = List().First(p => !string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
-            var switchResult = SetActive(next.Id);
-            if (!switchResult.Success)
-                return switchResult;
+            var next = List().FirstOrDefault(p => !string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
+            if (next is not null)
+            {
+                var switchResult = SetActive(next.Id);
+                if (!switchResult.Success)
+                    return switchResult;
+                switchedAway = true;
+            }
+            else
+            {
+                // Last profile: clear active before removing so Ensure can recreate.
+                _settings.ActiveProfileId = "";
+                _settingsService.Save(_settings);
+            }
         }
 
         var dir = AppPaths.ProfileDir(id);
@@ -193,6 +166,16 @@ public sealed class ProfileService
             {
                 return MountResult.Fail(ex.Message);
             }
+        }
+
+        EnsureAtLeastOneProfile();
+
+        // Deleted the last profile and created a replacement — remount it.
+        if (wasActive && !switchedAway)
+        {
+            var active = GetActive();
+            if (GamePathValidator.IsValid(_settings.GamePath))
+                return SetActive(active.Id);
         }
 
         return MountResult.Ok();
@@ -253,7 +236,7 @@ public sealed class ProfileService
                 .ToList()
             : [];
 
-        _settings.ActiveProfileId = userDirs.Count > 0 ? userDirs[0]! : GameProfile.DefaultBuiltInId;
+        _settings.ActiveProfileId = userDirs.Count > 0 ? userDirs[0]! : "";
         _settingsService.Save(_settings);
     }
 

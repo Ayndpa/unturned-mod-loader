@@ -299,14 +299,6 @@
                                                                        FontSize="11"
                                                                        Foreground="{StaticResource MidGrayBrush}" />
                                                         </Border>
-                                                        <Border Background="{StaticResource BgSurfaceAltBrush}"
-                                                                CornerRadius="4"
-                                                                Padding="6,2"
-                                                                IsVisible="{Binding IsBuiltIn}">
-                                                            <TextBlock Text="{c:I18n {x:Static i18n:ProfileKeys.BuiltIn}}"
-                                                                       FontSize="11"
-                                                                       Foreground="{StaticResource MidGrayBrush}" />
-                                                        </Border>
                                                     </StackPanel>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1"
@@ -329,8 +321,7 @@
                                                     <Button Classes="icon"
                                                             ToolTip.Tip="{c:I18n {x:Static i18n:ProfileKeys.Delete}}"
                                                             Command="{Binding #settingsRoot.((vm:SettingsViewModel)DataContext).DeleteProfileCommand}"
-                                                            CommandParameter="{Binding}"
-                                                            IsVisible="{Binding !IsBuiltIn}">
+                                                            CommandParameter="{Binding}">
                                                         <LucideIcon Kind="Trash2" Size="16" />
                                                     </Button>
                                                 </StackPanel>

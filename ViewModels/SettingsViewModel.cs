@@ -349,7 +349,7 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand]
     private void DeleteProfile(ProfileItemViewModel? profile)
     {
-        if (profile is null || profile.IsBuiltIn)
+        if (profile is null)
             return;
 
         if (GameProcessService.IsRunning(_settings.GamePath, _vfs.DriveLetter))

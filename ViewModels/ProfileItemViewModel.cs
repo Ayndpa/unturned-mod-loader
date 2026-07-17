@@ -7,7 +7,6 @@ public partial class ProfileItemViewModel : ObservableObject
 {
     public string Id { get; init; } = "";
     public string Name { get; set; } = "";
-    public bool IsBuiltIn { get; init; }
 
     [ObservableProperty]
     private bool _isActive;
@@ -16,7 +15,6 @@ public partial class ProfileItemViewModel : ObservableObject
     {
         Id = profile.Id,
         Name = profile.Name,
-        IsBuiltIn = profile.IsBuiltIn,
         IsActive = string.Equals(profile.Id, activeId, StringComparison.OrdinalIgnoreCase),
     };
 }

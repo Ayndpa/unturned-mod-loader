@@ -20,6 +20,7 @@ public static class Common
     public const string NoDescription = "Localization.Common.NoDescription";
     public const string Confirm = "Localization.Common.Confirm";
     public const string Cancel = "Localization.Common.Cancel";
+    public const string OpenInBrowser = "Localization.Common.OpenInBrowser";
 }
 
 public static class LocaleKeys
@@ -186,7 +187,6 @@ public static class ProfileKeys
     public const string Delete = "Localization.Profile.Delete";
     public const string SetActive = "Localization.Profile.SetActive";
     public const string OpenFolder = "Localization.Profile.OpenFolder";
-    public const string BuiltIn = "Localization.Profile.BuiltIn";
     public const string Status = "Localization.Profile.Status";
     public const string GameRunning = "Localization.Profile.GameRunning";
     public const string CreateFailed = "Localization.Profile.CreateFailed";

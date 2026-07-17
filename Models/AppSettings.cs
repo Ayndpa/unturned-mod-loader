@@ -10,8 +10,8 @@ public class AppSettings
     /// <summary>Single Unturned install root (folder containing Unturned.exe).</summary>
     public string GamePath { get; set; } = "";
 
-    /// <summary>Active profile id (see <see cref="GameProfile.DefaultBuiltInId"/>).</summary>
-    public string ActiveProfileId { get; set; } = GameProfile.DefaultBuiltInId;
+    /// <summary>Active profile id. Empty until <see cref="Services.ProfileService"/> ensures at least one profile.</summary>
+    public string ActiveProfileId { get; set; } = "";
 
     public string? AuthToken { get; set; }
     public int? UserId { get; set; }
