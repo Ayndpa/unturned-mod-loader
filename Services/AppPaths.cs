@@ -8,8 +8,6 @@ public static class AppPaths
         "UnturnedModLoader");
 
     public static string SettingsPath => Path.Combine(AppDataDir, "settings.json");
-    public static string LegacyInstalledModsPath => Path.Combine(AppDataDir, "installed-mods.json");
-    public static string LegacyQuarantineDir => Path.Combine(AppDataDir, "quarantine");
     public static string ProfilesRoot => Path.Combine(AppDataDir, "profiles");
 
     public static string ProfileDir(string profileId) =>
@@ -18,21 +16,16 @@ public static class AppPaths
     public static string ProfileMetaPath(string profileId) =>
         Path.Combine(ProfileDir(profileId), "profile.json");
 
-    public static string ProfileInstalledModsPath(string profileId) =>
-        Path.Combine(ProfileDir(profileId), "installed-mods.json");
-
-    public static string ProfileQuarantineDir(string profileId) =>
-        Path.Combine(ProfileDir(profileId), "quarantine");
-
     /// <summary>Profile content mirrored relative to the game install root (VFS upper layer).</summary>
     public static string ProfileOverlayDir(string profileId) =>
         Path.Combine(ProfileDir(profileId), "overlay");
 
-    public static string ProfileModulesFolder(string profileId) =>
-        Path.Combine(ProfileOverlayDir(profileId), "Modules");
-
-    public static string GameModulesFolder(string gamePath) =>
-        Path.Combine(gamePath, "Modules");
+    /// <summary>
+    /// Per-mod manifest files live here, one JSON per installed RemoteId. Sits inside the
+    /// overlay so it travels with the profile; Unturned ignores the unknown directory.
+    /// </summary>
+    public static string ProfileManifestsDir(string profileId) =>
+        Path.Combine(ProfileOverlayDir(profileId), ".unmod-manifests");
 
     public static void EnsureAppData() => Directory.CreateDirectory(AppDataDir);
 
@@ -43,7 +36,7 @@ public static class AppPaths
 
         Directory.CreateDirectory(ProfileDir(profileId));
         Directory.CreateDirectory(ProfileOverlayDir(profileId));
-        Directory.CreateDirectory(ProfileModulesFolder(profileId));
+        Directory.CreateDirectory(ProfileManifestsDir(profileId));
     }
 
     private static string SanitizeId(string profileId)

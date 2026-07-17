@@ -11,19 +11,20 @@ namespace UnturnedModLoader.Services;
 
 public sealed class ModDownloadService
 {
-    private readonly ModScriptService _scriptService;
     private readonly InstalledModsService? _installedMods;
 
-    public ModDownloadService() : this(new ModScriptService(), null) { }
+    public ModDownloadService() : this(null) { }
 
-    public ModDownloadService(ModScriptService scriptService, InstalledModsService? installedMods)
+    public ModDownloadService(InstalledModsService? installedMods)
     {
-        _scriptService = scriptService;
         _installedMods = installedMods;
     }
 
-    /// <param name="modulesFolder">
-    /// Profile overlay Modules folder (e.g. profiles\{id}\overlay\Modules). Null -> save dialog.
+    /// <param name="overlayRoot">
+    /// Profile overlay root (e.g. profiles\{id}\overlay) -- the VFS upper layer that maps 1:1
+    /// to the game root. The package is extracted here so its internal layout (root files,
+    /// <c>BepInEx\</c>, <c>Modules\X\</c>, …) lands at the correct game-relative paths.
+    /// Null -> save-to-disk dialog instead of installing into a profile.
     /// </param>
     /// <param name="progress">
     /// Optional callback for dependency install progress messages.
@@ -31,18 +32,16 @@ public sealed class ModDownloadService
     public async Task<ModInstallResult> DownloadAndInstallAsync(
         IModsApiClient modsApi,
         int modId,
-        string? modulesFolder,
+        string? overlayRoot,
         Window owner,
         Action<string>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var installContext = string.IsNullOrWhiteSpace(modulesFolder)
-            ? null
-            : BuildInstallContext(modulesFolder!);
+        var installingToProfile = !string.IsNullOrWhiteSpace(overlayRoot);
 
         // When installing to a profile, resolve and install dependencies first
         RemoteModDetail? modDetail = null;
-        if (installContext is not null)
+        if (installingToProfile)
         {
             var detailResult = await modsApi.GetModAsync(modId, cancellationToken);
             // Detail fetch is best-effort for metadata; a failure here should not block the
@@ -52,7 +51,7 @@ public sealed class ModDownloadService
             if (modDetail?.Dependencies.Count > 0)
             {
                 var depResult = await InstallDependenciesAsync(
-                    modsApi, modDetail.Dependencies, modulesFolder!, progress,
+                    modsApi, modDetail.Dependencies, overlayRoot!, progress,
                     new HashSet<int> { modId }, cancellationToken);
                 if (!depResult.Success)
                     return depResult;
@@ -63,18 +62,16 @@ public sealed class ModDownloadService
         if (!download.Success || download.Content is null || string.IsNullOrWhiteSpace(download.FileName))
             return ModInstallResult.Failed(download.Error ?? "Download failed.");
 
-        if (installContext is not null)
+        if (installingToProfile)
         {
             try
             {
-                Directory.CreateDirectory(modulesFolder!);
-                var staged = await Task.Run(() => InstallToProfile(
-                    installContext, modId, modDetail, download.FileName!, download.Content!, progress, cancellationToken),
+                Directory.CreateDirectory(overlayRoot!);
+                await Task.Run(() => InstallAndRecord(
+                    overlayRoot!, download.FileName!, download.Content!, modId, modDetail, progress),
                     cancellationToken);
 
-                return staged.Success
-                    ? ModInstallResult.Installed(modulesFolder!)
-                    : staged;
+                return ModInstallResult.Installed(overlayRoot!);
             }
             catch (Exception ex)
             {
@@ -89,157 +86,51 @@ public sealed class ModDownloadService
     }
 
     /// <summary>
-    /// Derive the install context (overlay root, staging root, game-running state) from the
-    /// profile Modules folder path. <see cref="InstallContext.GamePath"/> is left empty because
-    /// scripted installs stage into the profile overlay only.
+    /// Extract the package directly into the profile overlay root (which the VFS presents as
+    /// the game root), collect every file written, and record a per-RemoteId manifest so the
+    /// installed list can show remote metadata and uninstall can remove exactly these files.
     /// </summary>
-    private static InstallContext BuildInstallContext(string modulesFolder)
-    {
-        var modulesInfo = new DirectoryInfo(modulesFolder);
-        var overlayDir = modulesInfo.Parent?.FullName ?? modulesFolder;
-        // profiles\{id}\scripts - per-mod subfolders created on install.
-        var stagingRoot = Path.GetFullPath(Path.Combine(overlayDir, "..", "scripts"));
-
-        return new InstallContext
-        {
-            Action = InstallAction.Install,
-            ModId = 0,
-            ModTitle = "",
-            ModVersion = "",
-            GamePath = "",
-            OverlayDir = overlayDir,
-            StagingDir = stagingRoot,
-            GameRunning = GameProcessService.IsRunning(),
-        };
-    }
-
-    /// <summary>
-    /// Extract the mod payload into a per-mod staging dir, run the install script if present
-    /// (else fall back to copying into overlay\Modules), and record the manifest entry.
-    /// </summary>
-    private ModInstallResult InstallToProfile(
-        InstallContext baseContext,
-        int modId,
-        RemoteModDetail? mod,
+    private void InstallAndRecord(
+        string overlayRoot,
         string fileName,
         byte[] content,
-        Action<string>? progress,
-        CancellationToken cancellationToken)
+        int modId,
+        RemoteModDetail? mod,
+        Action<string>? progress)
     {
-        var stagingDir = Path.Combine(baseContext.StagingDir, modId.ToString());
-        Directory.CreateDirectory(stagingDir);
-
         var locale = LocalizationService.CurrentLocaleCode;
         var modTitle = mod is not null
             ? LocalizedContent.Pick(mod.Title, locale)
-            : fileName;
-        if (string.IsNullOrWhiteSpace(modTitle))
-            modTitle = fileName;
+            : Path.GetFileNameWithoutExtension(fileName);
+        progress?.Invoke($"Installing {modTitle}…");
 
-        var context = baseContext with
-        {
-            ModId = modId,
-            ModTitle = modTitle,
-            ModVersion = mod?.Version ?? "1.0.0",
-            StagingDir = stagingDir,
-        };
+        var files = ExtractToOverlay(overlayRoot, fileName, content);
 
-        var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        if (extension == ".zip")
-            ExtractZipSafely(content, stagingDir);
-        else
-            File.WriteAllBytes(GetUniqueDestinationPath(stagingDir, Path.GetFileName(fileName)), content);
-
-        var installScript = ModScriptService.FindScript(stagingDir, InstallAction.Install);
-        if (installScript is null)
-        {
-            // No script -> legacy default: copy staged files straight into overlay\Modules.
-            progress?.Invoke($"Installing {context.ModTitle}…");
-            CopyToModules(stagingDir, context.ModulesDir);
-            RecordManifestEntry(context, mod, stagingDir, installedFiles: null);
-            return ModInstallResult.Installed(context.ModulesDir);
-        }
-
-        progress?.Invoke($"Running install script for {context.ModTitle}…");
-
-        // Snapshot overlay before the script runs so we can diff exactly what it wrote.
-        var before = ModScriptService.SnapshotOverlay(context.OverlayDir);
-        var run = _scriptService.Run(installScript, context, cancellationToken);
-        if (!run.Success)
-            return ModInstallResult.Failed(run.Error ?? "Install script failed.");
-
-        var after = ModScriptService.SnapshotOverlay(context.OverlayDir);
-        var installedFiles = after.Keys
-            .Where(k => !before.ContainsKey(k))
-            .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        RecordManifestEntry(context, mod, stagingDir, installedFiles);
-        return ModInstallResult.Installed(context.ModulesDir);
-    }
-
-    /// <summary>Copy staged files into the overlay Modules folder (default no-script path).</summary>
-    private static void CopyToModules(string stagingDir, string modulesDir)
-    {
-        Directory.CreateDirectory(modulesDir);
-        foreach (var entry in Directory.EnumerateFileSystemEntries(stagingDir, "*", SearchOption.AllDirectories))
-        {
-            var rel = Path.GetRelativePath(stagingDir, entry);
-            var dest = Path.Combine(modulesDir, rel);
-            if (Directory.Exists(entry))
-                Directory.CreateDirectory(dest);
-            else if (File.Exists(entry))
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-                File.Copy(entry, dest, overwrite: true);
-            }
-        }
-    }
-
-    private void RecordManifestEntry(
-        InstallContext context,
-        RemoteModDetail? mod,
-        string stagingDir,
-        List<string>? installedFiles)
-    {
         if (_installedMods is null)
             return;
 
-        var locale = LocalizationService.CurrentLocaleCode;
-        var title = mod is not null
-            ? LocalizedContent.Pick(mod.Title, locale)
-            : context.ModTitle;
+        var title = modTitle;
         if (string.IsNullOrWhiteSpace(title))
-            title = context.ModTitle;
-        var description = mod is not null
-            ? LocalizedContent.Pick(mod.Description, locale)
-            : null;
+            title = Path.GetFileNameWithoutExtension(fileName);
 
-        var profileRoot = Path.GetDirectoryName(context.OverlayDir)!; // profiles\{id}
-        var entry = new InstalledMod
+        _installedMods.RecordInstall(new InstalledMod
         {
-            RemoteId = context.ModId,
-            Kind = LocalModKind.Scripted,
-            RelativePath = title,
+            RemoteId = modId,
             Title = title,
             Author = mod?.AuthorName,
             Version = mod?.Version,
             Category = mod?.Category,
-            Description = description,
+            Description = mod is not null ? LocalizedContent.Pick(mod.Description, locale) : null,
             CoverUrl = mod?.CoverUrl,
-            IsEnabled = true,
             InstalledAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            InstalledFiles = installedFiles ?? [],
-            StagingDir = Path.GetRelativePath(profileRoot, stagingDir),
-        };
-
-        _installedMods.UpsertScripted(entry);
+            Files = files,
+        });
     }
 
     private async Task<ModInstallResult> InstallDependenciesAsync(
         IModsApiClient modsApi,
         List<RemoteModDependency> dependencies,
-        string modulesFolder,
+        string overlayRoot,
         Action<string>? progress,
         HashSet<int> visited,
         CancellationToken cancellationToken)
@@ -260,7 +151,7 @@ public sealed class ModDownloadService
             if (depDetail.Success && depDetail.Mod?.Dependencies.Count > 0)
             {
                 var subResult = await InstallDependenciesAsync(
-                    modsApi, depDetail.Mod.Dependencies, modulesFolder, progress,
+                    modsApi, depDetail.Mod.Dependencies, overlayRoot, progress,
                     visited, cancellationToken);
                 if (!subResult.Success)
                     return subResult;
@@ -273,8 +164,9 @@ public sealed class ModDownloadService
 
             try
             {
-                Directory.CreateDirectory(modulesFolder);
-                InstallToModules(modulesFolder, download.FileName, download.Content);
+                Directory.CreateDirectory(overlayRoot);
+                InstallAndRecord(overlayRoot, download.FileName, download.Content,
+                    dep.Id, depDetail.Success ? depDetail.Mod : null, progress);
             }
             catch (Exception ex)
             {
@@ -282,10 +174,15 @@ public sealed class ModDownloadService
             }
         }
 
-        return ModInstallResult.Installed(modulesFolder);
+        return ModInstallResult.Installed(overlayRoot);
     }
 
-    private static void InstallToModules(string modulesFolder, string fileName, byte[] content)
+    /// <summary>
+    /// Extract a package into <paramref name="overlayRoot"/> and return every file written as
+    /// an overlay-relative path (forward-slash separated). Zips are walked entry-by-entry with
+    /// zip-slip protection; a bare non-zip file is written under its own name.
+    /// </summary>
+    private static List<string> ExtractToOverlay(string overlayRoot, string fileName, byte[] content)
     {
         var safeName = Path.GetFileName(fileName);
         if (string.IsNullOrWhiteSpace(safeName))
@@ -293,17 +190,16 @@ public sealed class ModDownloadService
 
         var extension = Path.GetExtension(safeName).ToLowerInvariant();
         if (extension == ".zip")
-        {
-            ExtractZipSafely(content, modulesFolder);
-            return;
-        }
+            return ExtractZipSafely(content, overlayRoot);
 
-        var destination = GetUniqueDestinationPath(modulesFolder, safeName);
+        var destination = GetUniqueDestinationPath(overlayRoot, safeName);
         File.WriteAllBytes(destination, content);
+        return [Path.GetRelativePath(overlayRoot, destination).Replace('\\', '/')];
     }
 
-    private static void ExtractZipSafely(byte[] content, string destinationFolder)
+    private static List<string> ExtractZipSafely(byte[] content, string destinationFolder)
     {
+        var written = new List<string>();
         using var stream = new MemoryStream(content);
         using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
 
@@ -325,7 +221,10 @@ public sealed class ModDownloadService
                 Directory.CreateDirectory(directory);
 
             entry.ExtractToFile(destination, overwrite: true);
+            written.Add(Path.GetRelativePath(destinationFolder, destination).Replace('\\', '/'));
         }
+
+        return written;
     }
 
     private static string GetUniqueDestinationPath(string directory, string fileName)

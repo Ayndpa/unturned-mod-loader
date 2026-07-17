@@ -33,7 +33,6 @@ public partial class MainViewModel : ViewModelBase
     private readonly Window _owner;
     private CancellationTokenSource? _searchDebounceCts;
     private CancellationTokenSource? _loadCts;
-    private bool _isHandlingToggle;
     private bool _wasGameRunning;
     private DispatcherTimer? _gameProcessTimer;
 
@@ -82,9 +81,6 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private string _activeProfileId = GameProfile.DefaultBuiltInId;
 
-    public string? GameRunningToggleTooltip =>
-        IsGameRunning ? L.Get(Main.GameRunningToggleBlocked) : null;
-
     public ObservableCollection<ModItemViewModel> Mods { get; } = [];
     public ObservableCollection<InstalledModItemViewModel> InstalledMods { get; } = [];
     public ObservableCollection<CategoryViewModel> Categories { get; } = [];
@@ -92,8 +88,6 @@ public partial class MainViewModel : ViewModelBase
 
     public bool IsBrowsePage => CurrentPage == MainPage.Browse;
     public bool IsInstalledPage => CurrentPage == MainPage.Installed;
-
-    public int EnabledCount => InstalledMods.Count(m => m.IsEnabled);
 
     public int TotalCount => IsInstalledPage ? InstalledMods.Count : Mods.Count;
     public string Username => _settings.Username ?? "";
@@ -227,7 +221,7 @@ public partial class MainViewModel : ViewModelBase
             _settings,
             _owner,
             downloadService: _downloadService,
-            getInstallModulesFolder: () => _installedModsService.ModulesRoot)
+            getInstallModulesFolder: () => _installedModsService.OverlayRoot)
         {
             AutoInstallAfterLoad = autoInstall,
         };
@@ -242,7 +236,6 @@ public partial class MainViewModel : ViewModelBase
 
         if (downloadCompleted)
         {
-            _installedModsService.ScanAndMerge();
             if (IsInstalledPage)
                 await LoadInstalledModsAsync();
         }
@@ -265,14 +258,13 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     private void RemoveInstalledMod(InstalledModItemViewModel? mod)
     {
-        if (mod is null)
+        if (mod is null || mod.RemoteId is null)
             return;
 
-        if (!_installedModsService.Remove(mod.RelativePath, GamePath))
+        if (!_installedModsService.Remove(mod.RemoteId.Value))
             return;
 
         InstalledMods.Remove(mod);
-        OnPropertyChanged(nameof(EnabledCount));
         OnPropertyChanged(nameof(TotalCount));
         StatusText = L.Get(Main.InstalledRemoved, mod.Title);
 
@@ -573,7 +565,6 @@ public partial class MainViewModel : ViewModelBase
                     title: L.Get(Main.CannotConnectTitle),
                     subtitle: result.Error ?? L.Get(Main.CannotConnectHint));
                 StatusText = result.Error ?? L.Get(Main.ApiRequestFailed);
-                OnPropertyChanged(nameof(EnabledCount));
                 OnPropertyChanged(nameof(TotalCount));
                 return;
             }
@@ -619,7 +610,7 @@ public partial class MainViewModel : ViewModelBase
 
         IsLoading = true;
         IsEmpty = false;
-        ListMessage = L.Get(Main.ParsingInstalled);
+        ListMessage = L.Get(Main.LoadingInstalled);
 
         try
         {
@@ -632,15 +623,14 @@ public partial class MainViewModel : ViewModelBase
                     title: L.Get(Main.GamePathNotConfigured),
                     subtitle: L.Get(Main.NoInstalledHint));
                 StatusText = L.Get(Main.GamePathNotConfigured);
-                OnPropertyChanged(nameof(EnabledCount));
                 OnPropertyChanged(nameof(TotalCount));
                 return;
             }
 
-            var installed = await Task.Run(() => _installedModsService.ScanAndMerge());
+            var installed = await Task.Run(() => _installedModsService.GetAll());
             InstalledMods.Clear();
 
-            foreach (var mod in installed.OrderByDescending(m => m.InstalledAt))
+            foreach (var mod in installed)
             {
                 if (!MatchesInstalledSearch(mod))
                     continue;
@@ -648,44 +638,20 @@ public partial class MainViewModel : ViewModelBase
                 var vm = new InstalledModItemViewModel
                 {
                     RemoteId = mod.RemoteId,
-                    Kind = mod.Kind,
                     Title = mod.Title,
-                    ModuleName = mod.ModuleName,
-                    Author = mod.Author ?? "—",
-                    Version = string.IsNullOrWhiteSpace(mod.Version) ? "—" : mod.Version,
-                    Category = mod.Kind switch
-                    {
-                        LocalModKind.Module => L.Get(InstalledModDetail.TypeModule),
-                        LocalModKind.Scripted => L.Get(InstalledModDetail.TypeScripted),
-                        _ => L.Get(InstalledModDetail.TypeDll),
-                    },
+                    Author = mod.Author ?? "-",
+                    Version = string.IsNullOrWhiteSpace(mod.Version) ? "-" : mod.Version,
+                    Category = mod.Category ?? "",
                     Description = string.IsNullOrWhiteSpace(mod.Description)
                         ? L.Get(Common.NoDescription)
                         : mod.Description,
-                    RelativePath = mod.RelativePath,
-                    ModuleFilePath = mod.ModuleFilePath,
-                    DirectoryPath = mod.DirectoryPath,
-                    LocalIconPath = mod.LocalIconPath,
                     CoverUrl = mod.CoverUrl,
-                    DependencyNames = mod.DependencyNames,
-                    Dependencies = mod.Dependencies,
-                    Assemblies = mod.Assemblies,
-                    IsEnabled = mod.IsEnabled,
-                    // Scripted mods are managed by their scripts; no in-place toggle.
-                    CanToggle = mod.Kind != LocalModKind.Scripted,
-                };
-
-                vm.PropertyChanged += async (_, e) =>
-                {
-                    if (e.PropertyName == nameof(InstalledModItemViewModel.IsEnabled))
-                        await HandleInstalledModToggleAsync(vm);
+                    FileCount = mod.Files.Count,
                 };
 
                 InstalledMods.Add(vm);
                 _ = LoadInstalledCoverAsync(vm);
             }
-
-            UpdateInstalledModToggleAvailability();
 
             if (InstalledMods.Count == 0)
             {
@@ -697,7 +663,7 @@ public partial class MainViewModel : ViewModelBase
                     subtitle: hasSearch
                         ? L.Get(Main.NoMatchHint)
                         : L.Get(Main.NoInstalledHint));
-                StatusText = L.Get(Main.InstalledEnabledSummary, 0, 0);
+                StatusText = L.Get(Main.InstalledCount, 0);
             }
             else
             {
@@ -705,11 +671,10 @@ public partial class MainViewModel : ViewModelBase
                 IsErrorState = false;
                 IsSearchEmpty = false;
                 ListMessage = "";
-                StatusText = L.Get(Main.InstalledEnabledSummary, EnabledCount, InstalledMods.Count);
+                StatusText = L.Get(Main.InstalledCount, InstalledMods.Count);
                 NotifyEmptyIconStates();
             }
 
-            OnPropertyChanged(nameof(EnabledCount));
             OnPropertyChanged(nameof(TotalCount));
         }
         finally
@@ -747,8 +712,6 @@ public partial class MainViewModel : ViewModelBase
             return;
 
         IsGameRunning = false;
-        UpdateInstalledModToggleAvailability();
-        OnPropertyChanged(nameof(GameRunningToggleTooltip));
     }
 
     private void OnGameProcessTimerTick(object? sender, EventArgs e) => RefreshGameRunningState();
@@ -762,194 +725,9 @@ public partial class MainViewModel : ViewModelBase
 
         _wasGameRunning = running;
         IsGameRunning = running;
-        UpdateInstalledModToggleAvailability();
-        OnPropertyChanged(nameof(GameRunningToggleTooltip));
 
         if (IsInstalledPage && !IsLoading)
             UpdateStatus();
-    }
-
-    private void UpdateInstalledModToggleAvailability()
-    {
-        var canToggle = !IsGameRunning;
-        foreach (var vm in InstalledMods)
-            vm.CanToggle = canToggle && vm.Kind != LocalModKind.Scripted;
-    }
-
-    partial void OnIsGameRunningChanged(bool value)
-    {
-        OnPropertyChanged(nameof(GameRunningToggleTooltip));
-        UpdateInstalledModToggleAvailability();
-    }
-
-    private async Task HandleInstalledModToggleAsync(InstalledModItemViewModel vm)
-    {
-        if (_isHandlingToggle)
-            return;
-
-        if (IsGameRunning)
-        {
-            RevertToggle(vm, !vm.IsEnabled);
-            StatusText = L.Get(Main.GameRunningToggleBlocked);
-            return;
-        }
-
-        var desiredEnabled = vm.IsEnabled;
-        var installedMods = _installedModsService.GetAll();
-        var installedMod = installedMods.FirstOrDefault(mod =>
-            string.Equals(mod.RelativePath, vm.RelativePath, StringComparison.OrdinalIgnoreCase));
-
-        if (installedMod is null)
-        {
-            RevertToggle(vm, !desiredEnabled);
-            StatusText = L.Get(Main.ModToggleFailed);
-            return;
-        }
-
-        _isHandlingToggle = true;
-        vm.IsTogglePending = true;
-
-        try
-        {
-            var pathsToEnable = new List<string>();
-            var pathsToDisable = new List<string>();
-
-            if (desiredEnabled)
-            {
-                pathsToEnable.AddRange(await BuildEnablePathsAsync(installedMod, installedMods));
-                if (pathsToEnable.Count == 0)
-                {
-                    RevertToggle(vm, false);
-                    return;
-                }
-            }
-            else
-            {
-                if (!await ConfirmDisableAsync(installedMod, installedMods, pathsToDisable))
-                {
-                    RevertToggle(vm, true);
-                    return;
-                }
-
-                pathsToDisable.Add(installedMod.RelativePath);
-            }
-
-            if (desiredEnabled)
-            {
-                if (!_installedModsService.SetEnabledMany(pathsToEnable, GamePath, enabled: true))
-                {
-                    RevertToggle(vm, false);
-                    StatusText = L.Get(Main.ModToggleFailed);
-                    return;
-                }
-
-                ApplyEnabledStateToViewModels(pathsToEnable, enabled: true);
-                StatusText = L.Get(Main.ModToggleEnabled, installedMod.Title);
-            }
-            else
-            {
-                if (!_installedModsService.SetEnabledMany(pathsToDisable, GamePath, enabled: false))
-                {
-                    RevertToggle(vm, true);
-                    StatusText = L.Get(Main.ModToggleFailed);
-                    return;
-                }
-
-                ApplyEnabledStateToViewModels(pathsToDisable, enabled: false);
-                StatusText = L.Get(Main.ModToggleDisabled, installedMod.Title);
-            }
-
-            OnPropertyChanged(nameof(EnabledCount));
-        }
-        finally
-        {
-            vm.IsTogglePending = false;
-            _isHandlingToggle = false;
-        }
-    }
-
-    private async Task<IReadOnlyList<string>> BuildEnablePathsAsync(
-        InstalledMod mod,
-        IReadOnlyList<InstalledMod> installedMods)
-    {
-        var paths = new List<string>();
-
-        if (mod.Kind == LocalModKind.Module)
-        {
-            var graph = ModuleDependencyGraph.Build(installedMods);
-            var dependencies = graph.ExpandDependenciesForEnable(mod, [mod.RelativePath]);
-            if (dependencies.Count > 0)
-            {
-                var names = dependencies
-                    .Select(dependency => dependency.Title)
-                    .Distinct(StringComparer.OrdinalIgnoreCase);
-
-                var confirmed = await DialogService.ConfirmAsync(
-                    _owner,
-                    L.Get(Main.EnableDependencyTitle),
-                    L.Get(Main.EnableDependencyMessage, string.Join(Environment.NewLine, names)),
-                    L.Get(Main.EnableWithDependencies));
-
-                if (!confirmed)
-                    return [];
-
-                foreach (var dependency in dependencies)
-                    paths.Add(dependency.RelativePath);
-            }
-        }
-
-        paths.Add(mod.RelativePath);
-        return paths;
-    }
-
-    private async Task<bool> ConfirmDisableAsync(
-        InstalledMod mod,
-        IReadOnlyList<InstalledMod> installedMods,
-        List<string> pathsToDisable)
-    {
-        if (mod.Kind != LocalModKind.Module || string.IsNullOrWhiteSpace(mod.ModuleName))
-            return true;
-
-        var graph = ModuleDependencyGraph.Build(installedMods);
-        var dependents = graph.GetEnabledDependents(mod);
-        if (dependents.Count == 0)
-            return true;
-
-        foreach (var dependent in dependents.OrderByDescending(item => item.RelativePath, StringComparer.OrdinalIgnoreCase))
-            pathsToDisable.Add(dependent.RelativePath);
-
-        var names = dependents
-            .Select(dependent => dependent.Title)
-            .Distinct(StringComparer.OrdinalIgnoreCase);
-
-        var message = L.Get(Main.DisableCascadeMessage, string.Join(Environment.NewLine, names));
-        return await DialogService.ConfirmAsync(
-            _owner,
-            L.Get(Main.DisableCascadeTitle),
-            message,
-            L.Get(Common.Confirm));
-    }
-
-    private void RevertToggle(InstalledModItemViewModel vm, bool enabled)
-    {
-        _isHandlingToggle = true;
-        vm.IsEnabled = enabled;
-        _isHandlingToggle = false;
-    }
-
-    private void ApplyEnabledStateToViewModels(IEnumerable<string> relativePaths, bool enabled)
-    {
-        var targets = relativePaths.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        _isHandlingToggle = true;
-        try
-        {
-            foreach (var item in InstalledMods.Where(vm => targets.Contains(vm.RelativePath)))
-                item.IsEnabled = enabled;
-        }
-        finally
-        {
-            _isHandlingToggle = false;
-        }
     }
 
     private bool MatchesInstalledSearch(InstalledMod mod)
@@ -960,8 +738,7 @@ public partial class MainViewModel : ViewModelBase
         var query = SearchText.Trim();
         return mod.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
                || (mod.Author?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false)
-               || mod.RelativePath.Contains(query, StringComparison.OrdinalIgnoreCase)
-               || mod.Dependencies.Any(dep => dep.Contains(query, StringComparison.OrdinalIgnoreCase));
+               || (mod.Category?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false);
     }
 
     private async Task ApplyModsAsync(IReadOnlyList<RemoteMod> remoteMods, CancellationToken token)
@@ -992,7 +769,6 @@ public partial class MainViewModel : ViewModelBase
             _ = LoadBrowseCoverAsync(vm, remote.CoverUrl, token);
         }
 
-        OnPropertyChanged(nameof(EnabledCount));
         OnPropertyChanged(nameof(TotalCount));
     }
 
@@ -1012,14 +788,6 @@ public partial class MainViewModel : ViewModelBase
 
     private async Task LoadInstalledCoverAsync(InstalledModItemViewModel vm)
     {
-        var localBitmap = RemoteImageService.LoadLocal(vm.LocalIconPath);
-        if (localBitmap is not null)
-        {
-            vm.CoverImage = localBitmap;
-            vm.HasCoverImage = true;
-            return;
-        }
-
         if (string.IsNullOrWhiteSpace(vm.CoverUrl))
         {
             vm.HasCoverImage = false;
@@ -1080,7 +848,6 @@ public partial class MainViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(IsBrowsePage));
         OnPropertyChanged(nameof(IsInstalledPage));
-        OnPropertyChanged(nameof(EnabledCount));
         OnPropertyChanged(nameof(TotalCount));
     }
 
@@ -1101,7 +868,7 @@ public partial class MainViewModel : ViewModelBase
             }
 
             StatusText = GamePathValidator.IsValid(GamePath)
-                ? L.Get(Main.InstalledEnabledSummary, EnabledCount, InstalledMods.Count)
+                ? L.Get(Main.InstalledCount, InstalledMods.Count)
                 : L.Get(Main.GamePathNotConfigured);
             return;
         }

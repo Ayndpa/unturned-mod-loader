@@ -150,17 +150,7 @@ public static class Main
     public const string NoInstalledTitle = "Localization.Main.NoInstalledTitle";
     public const string NoInstalledHint = "Localization.Main.NoInstalledHint";
     public const string InstalledCount = "Localization.Main.InstalledCount";
-    public const string InstalledEnabledSummary = "Localization.Main.InstalledEnabledSummary";
     public const string InstalledRemoved = "Localization.Main.InstalledRemoved";
-    public const string ParsingInstalled = "Localization.Main.ParsingInstalled";
-    public const string ModToggleEnabled = "Localization.Main.ModToggleEnabled";
-    public const string ModToggleDisabled = "Localization.Main.ModToggleDisabled";
-    public const string ModToggleFailed = "Localization.Main.ModToggleFailed";
-    public const string DisableCascadeTitle = "Localization.Main.DisableCascadeTitle";
-    public const string DisableCascadeMessage = "Localization.Main.DisableCascadeMessage";
-    public const string EnableDependencyTitle = "Localization.Main.EnableDependencyTitle";
-    public const string EnableDependencyMessage = "Localization.Main.EnableDependencyMessage";
-    public const string EnableWithDependencies = "Localization.Main.EnableWithDependencies";
     public const string GameRunningToggleBlocked = "Localization.Main.GameRunningToggleBlocked";
     public const string LaunchFailed = "Localization.Main.LaunchFailed";
     public const string LaunchStarted = "Localization.Main.LaunchStarted";
@@ -202,19 +192,8 @@ public static class ProfileKeys
 public static class InstalledModDetail
 {
     public const string Title = "Localization.InstalledModDetail.Title";
-    public const string TypeModule = "Localization.InstalledModDetail.TypeModule";
-    public const string TypeDll = "Localization.InstalledModDetail.TypeDll";
-    public const string TypeScripted = "Localization.InstalledModDetail.TypeScripted";
-    public const string StatusEnabled = "Localization.InstalledModDetail.StatusEnabled";
-    public const string StatusDisabled = "Localization.InstalledModDetail.StatusDisabled";
-    public const string DisabledBadge = "Localization.InstalledModDetail.DisabledBadge";
     public const string Version = "Localization.InstalledModDetail.Version";
-    public const string Path = "Localization.InstalledModDetail.Path";
-    public const string Directory = "Localization.InstalledModDetail.Directory";
-    public const string Dependencies = "Localization.InstalledModDetail.Dependencies";
-    public const string Assemblies = "Localization.InstalledModDetail.Assemblies";
-    public const string NoDependencies = "Localization.InstalledModDetail.NoDependencies";
-    public const string NoAssemblies = "Localization.InstalledModDetail.NoAssemblies";
+    public const string FileCount = "Localization.InstalledModDetail.FileCount";
 }
 
 public static class ImagePreview

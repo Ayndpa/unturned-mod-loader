@@ -60,9 +60,6 @@ public class SettingsService
             settings.ActiveProfileId = first ?? GameProfile.DefaultBuiltInId;
         }
 
-        var needsVersionBump = settings.SettingsVersion < 2;
-        var legacyManifestExists = File.Exists(AppPaths.LegacyInstalledModsPath);
-
         if (Directory.Exists(AppPaths.ProfilesRoot))
         {
             foreach (var dir in Directory.EnumerateDirectories(AppPaths.ProfilesRoot))
@@ -75,58 +72,12 @@ public class SettingsService
 
         profileService.EnsureAtLeastOneProfile();
 
-        if (!needsVersionBump && !legacyManifestExists)
-        {
-            if (settings.SettingsVersion < 2)
-            {
-                settings.SettingsVersion = 2;
-                Save(settings);
-            }
-
-            return null;
-        }
-
         if (settings.SettingsVersion < 2)
+        {
             settings.SettingsVersion = 2;
-
-        string? message = null;
-
-        if (legacyManifestExists)
-        {
-            var defaultProfile = profileService.Create(GetDefaultProfileName());
-            AppPaths.EnsureProfileLayout(defaultProfile.Id);
-
-            try
-            {
-                var dest = AppPaths.ProfileInstalledModsPath(defaultProfile.Id);
-                if (!File.Exists(dest))
-                    File.Move(AppPaths.LegacyInstalledModsPath, dest);
-                else
-                    File.Delete(AppPaths.LegacyInstalledModsPath);
-            }
-            catch
-            {
-                // best effort
-            }
-
-            settings.ActiveProfileId = defaultProfile.Id;
-            message ??= "Created default profile from previous install.";
+            Save(settings);
         }
 
-        Save(settings);
-
-        return message;
-    }
-
-    private static string GetDefaultProfileName()
-    {
-        try
-        {
-            return L.Get(I18n.ProfileKeys.DefaultName);
-        }
-        catch
-        {
-            return "Default";
-        }
+        return null;
     }
 }

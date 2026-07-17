@@ -3,35 +3,30 @@ using UnturnedModLoader.Models;
 
 namespace UnturnedModLoader.Services;
 
-public class InstalledModsService
+/// <summary>
+/// Tracks installed mods as one manifest file per RemoteId under the profile overlay's
+/// <c>.unmod-manifests\</c> directory. Each manifest records the remote metadata plus the
+/// exact list of files the package extracted into the overlay root, so uninstall can remove
+/// exactly what was written. No scanning of the game/modules folder is performed.
+/// </summary>
+public sealed class InstalledModsService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
     };
 
-    private readonly LocalModuleParser _parser = new();
-    private readonly ModScriptService _scriptService;
     private string _profileId = "";
-    private string _manifestPath = "";
-    private string _modulesRoot = "";
     private string _overlayRoot = "";
-    private string _profileRoot = "";
-    private string _quarantineDir = "";
-    private InstalledModsManifest _manifest = new();
+    private string _manifestsDir = "";
 
-    public InstalledModsService() : this(new ModScriptService()) { }
-
-    public InstalledModsService(ModScriptService scriptService)
+    public InstalledModsService()
     {
-        _scriptService = scriptService;
         AppPaths.EnsureAppData();
     }
 
-    public static string GetModsFolder(string gamePath) => AppPaths.GameModulesFolder(gamePath);
-
-    public string ActiveProfileId => _profileId;
-    public string ModulesRoot => _modulesRoot;
+    /// <summary>Overlay root (= game root via VFS). Mods extract directly into here.</summary>
+    public string OverlayRoot => _overlayRoot;
 
     public void UseProfile(string profileId)
     {
@@ -39,396 +34,123 @@ public class InstalledModsService
 
         if (string.IsNullOrWhiteSpace(profileId))
         {
-            _manifestPath = "";
-            _modulesRoot = "";
             _overlayRoot = "";
-            _profileRoot = "";
-            _quarantineDir = "";
-            _manifest = new InstalledModsManifest();
+            _manifestsDir = "";
             return;
         }
 
         AppPaths.EnsureProfileLayout(profileId);
-        _manifestPath = AppPaths.ProfileInstalledModsPath(profileId);
-        _modulesRoot = AppPaths.ProfileModulesFolder(profileId);
         _overlayRoot = AppPaths.ProfileOverlayDir(profileId);
-        _profileRoot = AppPaths.ProfileDir(profileId);
-        _quarantineDir = AppPaths.ProfileQuarantineDir(profileId);
-        Directory.CreateDirectory(_modulesRoot);
-        _manifest = LoadManifest();
+        _manifestsDir = AppPaths.ProfileManifestsDir(profileId);
+        Directory.CreateDirectory(_manifestsDir);
     }
 
-    public IReadOnlyList<InstalledMod> GetAll() => _manifest.Mods;
-
-    public void Reload() => _manifest = LoadManifest();
-
-    public IReadOnlyList<InstalledMod> ScanAndMerge(string? gamePath = null)
+    /// <summary>Load every installed mod manifest, newest first.</summary>
+    public IReadOnlyList<InstalledMod> GetAll()
     {
-        if (string.IsNullOrWhiteSpace(_modulesRoot))
+        if (string.IsNullOrWhiteSpace(_manifestsDir) || !Directory.Exists(_manifestsDir))
             return [];
 
-        Directory.CreateDirectory(_modulesRoot);
-        MigrateQuarantineToDisabled();
-
-        var parsedMods = _parser.ScanModulesRoot(_modulesRoot);
-        var merged = new List<InstalledMod>();
-        var overlayByPath = _manifest.Mods
-            .Where(mod => !string.IsNullOrWhiteSpace(mod.RelativePath))
-            .ToDictionary(mod => mod.RelativePath, StringComparer.OrdinalIgnoreCase);
-
-        foreach (var parsed in parsedMods)
+        var mods = new List<InstalledMod>();
+        foreach (var file in Directory.EnumerateFiles(_manifestsDir, "*.json"))
         {
-            overlayByPath.TryGetValue(parsed.RelativePath, out var overlay);
-            merged.Add(BuildInstalledMod(parsed, overlay, parsed.IsEnabled));
+            var mod = LoadManifestFile(file);
+            if (mod is not null)
+                mods.Add(mod);
         }
 
-        foreach (var scripted in _manifest.Mods.Where(m => m.Kind == LocalModKind.Scripted))
-            merged.Add(scripted);
-
-        _manifest.Mods = merged;
-        Save();
-        return merged;
+        return mods
+            .OrderByDescending(m => m.InstalledAt)
+            .ToList();
     }
 
-    public void UpsertScripted(InstalledMod entry)
+    /// <summary>
+    /// Write the install manifest for <paramref name="entry"/>'s RemoteId. If a manifest
+    /// already exists for that RemoteId, files recorded there but absent from the new list
+    /// are removed first, so a version upgrade does not leave stale files behind.
+    /// </summary>
+    public void RecordInstall(InstalledMod entry)
     {
-        if (string.IsNullOrWhiteSpace(_manifestPath))
+        if (string.IsNullOrWhiteSpace(_manifestsDir) || entry.RemoteId is null)
             return;
 
-        var existing = _manifest.Mods.FirstOrDefault(m =>
-            m.Kind == LocalModKind.Scripted &&
-            ((entry.RemoteId is not null && m.RemoteId == entry.RemoteId)
-             || string.Equals(m.Title, entry.Title, StringComparison.OrdinalIgnoreCase)));
+        var path = ManifestPath(entry.RemoteId.Value);
 
-        if (existing is not null)
-            _manifest.Mods.Remove(existing);
+        // Reconcile against any prior install of the same RemoteId.
+        var previous = LoadManifestFile(path);
+        if (previous is not null)
+        {
+            var keep = entry.Files.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var rel in previous.Files)
+            {
+                if (string.IsNullOrWhiteSpace(rel) || keep.Contains(rel))
+                    continue;
 
-        _manifest.Mods.Add(entry);
-        Save();
+                DeleteOverlayFile(rel);
+            }
+        }
+
+        Directory.CreateDirectory(_manifestsDir);
+        var json = JsonSerializer.Serialize(entry, JsonOptions);
+        File.WriteAllText(path, json);
     }
 
-    public bool Remove(string relativePath, string? gamePath = null)
+    /// <summary>
+    /// Remove a mod by RemoteId: delete every file its manifest recorded, then delete the
+    /// manifest itself. Returns false if no manifest exists for <paramref name="remoteId"/>.
+    /// </summary>
+    public bool Remove(int remoteId)
     {
-        if (string.IsNullOrWhiteSpace(_manifestPath))
+        if (string.IsNullOrWhiteSpace(_manifestsDir))
             return false;
 
-        var mod = _manifest.Mods.FirstOrDefault(m =>
-            string.Equals(m.RelativePath, relativePath, StringComparison.OrdinalIgnoreCase));
-
+        var path = ManifestPath(remoteId);
+        var mod = LoadManifestFile(path);
         if (mod is null)
             return false;
 
-        if (mod.Kind == LocalModKind.Module)
-        {
-            if (!string.IsNullOrWhiteSpace(mod.ModuleFilePath) && File.Exists(mod.ModuleFilePath))
-            {
-                var directory = Path.GetDirectoryName(mod.ModuleFilePath);
-                if (!string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory))
-                    Directory.Delete(directory, recursive: true);
-            }
-        }
-        else if (mod.Kind == LocalModKind.Scripted)
-        {
-            UninstallScriptedMod(mod, gamePath);
-        }
-        else
-        {
-            var full = Path.Combine(_modulesRoot, mod.RelativePath);
-            if (File.Exists(full))
-                File.Delete(full);
-            var disabled = DllDisableHelper.GetDisabledPath(_modulesRoot, mod.RelativePath);
-            if (File.Exists(disabled))
-                File.Delete(disabled);
-        }
+        foreach (var rel in mod.Files)
+            DeleteOverlayFile(rel);
 
-        _manifest.Mods.Remove(mod);
-        Save();
+        try { File.Delete(path); }
+        catch { /* best effort */ }
+
         return true;
     }
 
-    public bool SetEnabled(string relativePath, string? gamePath, bool enabled)
+    private string ManifestPath(int remoteId) =>
+        Path.Combine(_manifestsDir, $"{remoteId}.json");
+
+    private void DeleteOverlayFile(string relativePath)
     {
-        var mod = _manifest.Mods.FirstOrDefault(m =>
-            string.Equals(m.RelativePath, relativePath, StringComparison.OrdinalIgnoreCase));
-
-        if (mod is null || string.IsNullOrWhiteSpace(_manifestPath))
-            return false;
-
-        if (mod.Kind == LocalModKind.Scripted)
-            return false;
-
-        if (!ApplyEnabledState(mod, enabled))
-            return false;
-
-        mod.IsEnabled = enabled;
-        Save();
-        return true;
-    }
-
-    public bool SetEnabledMany(IEnumerable<string> relativePaths, string? gamePath, bool enabled)
-    {
-        if (string.IsNullOrWhiteSpace(_manifestPath))
-            return false;
-
-        var paths = relativePaths
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        if (paths.Count == 0)
-            return false;
-
-        var changed = new List<InstalledMod>();
-        foreach (var relativePath in paths)
-        {
-            var mod = _manifest.Mods.FirstOrDefault(m =>
-                string.Equals(m.RelativePath, relativePath, StringComparison.OrdinalIgnoreCase));
-
-            if (mod is null)
-                return false;
-
-            if (mod.Kind == LocalModKind.Scripted)
-                return false;
-
-            if (!ApplyEnabledState(mod, enabled))
-            {
-                foreach (var applied in changed)
-                    ApplyEnabledState(applied, !enabled);
-
-                return false;
-            }
-
-            mod.IsEnabled = enabled;
-            changed.Add(mod);
-        }
-
-        Save();
-        return true;
-    }
-
-    public void Save()
-    {
-        if (string.IsNullOrWhiteSpace(_manifestPath))
+        if (string.IsNullOrWhiteSpace(relativePath) || string.IsNullOrWhiteSpace(_overlayRoot))
             return;
 
-        var json = JsonSerializer.Serialize(_manifest, JsonOptions);
-        File.WriteAllText(_manifestPath, json);
-    }
-
-    private bool ApplyEnabledState(InstalledMod mod, bool enabled)
-    {
-        if (mod.Kind == LocalModKind.Module)
-        {
-            if (string.IsNullOrWhiteSpace(mod.ModuleFilePath))
-                return false;
-
-            if (enabled)
-            {
-                if (!LocalModuleParser.TrySetAssembliesEnabled(mod.ModuleFilePath, enabled: true))
-                    return false;
-
-                if (!LocalModuleParser.TryWriteEnabled(mod.ModuleFilePath, isEnabled: true))
-                {
-                    LocalModuleParser.TrySetAssembliesEnabled(mod.ModuleFilePath, enabled: false);
-                    return false;
-                }
-
-                return true;
-            }
-
-            if (!LocalModuleParser.TryWriteEnabled(mod.ModuleFilePath, isEnabled: false))
-                return false;
-
-            if (!LocalModuleParser.TrySetAssembliesEnabled(mod.ModuleFilePath, enabled: false))
-            {
-                LocalModuleParser.TryWriteEnabled(mod.ModuleFilePath, isEnabled: true);
-                return false;
-            }
-
-            return true;
-        }
-
-        return DllDisableHelper.TrySetEnabled(_modulesRoot, mod.RelativePath, enabled);
-    }
-
-    private void MigrateQuarantineToDisabled()
-    {
-        if (string.IsNullOrWhiteSpace(_quarantineDir) || !Directory.Exists(_quarantineDir))
-            return;
-
-        Directory.CreateDirectory(_modulesRoot);
-
-        foreach (var quarantinedPath in Directory.EnumerateFiles(_quarantineDir, "*.dll", SearchOption.AllDirectories))
-        {
-            var relativePath = Path.GetRelativePath(_quarantineDir, quarantinedPath);
-            var disabledPath = DllDisableHelper.GetDisabledPath(_modulesRoot, relativePath);
-
-            try
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(disabledPath)!);
-                if (File.Exists(disabledPath))
-                    File.Delete(quarantinedPath);
-                else
-                    File.Move(quarantinedPath, disabledPath);
-            }
-            catch
-            {
-                // best effort
-            }
-        }
-
-        if (Directory.Exists(AppPaths.LegacyQuarantineDir))
-        {
-            foreach (var quarantinedPath in Directory.EnumerateFiles(AppPaths.LegacyQuarantineDir, "*.dll", SearchOption.AllDirectories))
-            {
-                var relativePath = Path.GetRelativePath(AppPaths.LegacyQuarantineDir, quarantinedPath);
-                var disabledPath = DllDisableHelper.GetDisabledPath(_modulesRoot, relativePath);
-                try
-                {
-                    Directory.CreateDirectory(Path.GetDirectoryName(disabledPath)!);
-                    if (!File.Exists(disabledPath))
-                        File.Move(quarantinedPath, disabledPath);
-                    else
-                        File.Delete(quarantinedPath);
-                }
-                catch
-                {
-                    // ignore
-                }
-            }
-        }
-    }
-
-    private static string GetDefaultCategory(LocalModKind kind) =>
-        kind == LocalModKind.Module ? "module" : "dll";
-
-    private InstalledMod BuildInstalledMod(
-        ParsedLocalMod parsed,
-        InstalledMod? overlay,
-        bool isEnabled)
-    {
-        var sourcePath = parsed.Kind == LocalModKind.Module && !string.IsNullOrWhiteSpace(parsed.ModuleFilePath)
-            ? parsed.ModuleFilePath
-            : Path.Combine(_modulesRoot, parsed.RelativePath);
-
-        return new InstalledMod
-        {
-            Kind = parsed.Kind,
-            RelativePath = parsed.RelativePath,
-            Title = parsed.Title,
-            ModuleName = parsed.ModuleName,
-            Version = parsed.Version,
-            ModuleFilePath = parsed.ModuleFilePath,
-            DirectoryPath = parsed.DirectoryPath,
-            LocalIconPath = parsed.LocalIconPath,
-            DependencyNames = parsed.DependencyNames.ToList(),
-            Dependencies = parsed.Dependencies.ToList(),
-            Assemblies = parsed.Assemblies.ToList(),
-            IsEnabled = isEnabled,
-            RemoteId = overlay?.RemoteId,
-            Author = overlay?.Author,
-            Category = overlay?.Category ?? GetDefaultCategory(parsed.Kind),
-            Description = overlay?.Description ?? BuildDescription(parsed),
-            CoverUrl = overlay?.CoverUrl,
-            InstalledAt = overlay?.InstalledAt
-                ?? new DateTimeOffset(File.Exists(sourcePath)
-                    ? File.GetCreationTimeUtc(sourcePath)
-                    : Directory.GetCreationTimeUtc(parsed.DirectoryPath)).ToUnixTimeSeconds(),
-        };
-    }
-
-    private static string BuildDescription(ParsedLocalMod parsed)
-    {
-        if (parsed.Dependencies.Count == 0 && parsed.Assemblies.Count == 0)
-            return "";
-
-        var parts = new List<string>();
-        if (parsed.Assemblies.Count > 0)
-            parts.Add($"{parsed.Assemblies.Count} assemblies");
-        if (parsed.Dependencies.Count > 0)
-            parts.Add($"{parsed.Dependencies.Count} dependencies");
-
-        return string.Join(" · ", parts);
-    }
-
-    private void UninstallScriptedMod(InstalledMod mod, string? gamePath)
-    {
-        if (!string.IsNullOrWhiteSpace(mod.StagingDir) && !string.IsNullOrWhiteSpace(_profileRoot))
-        {
-            var stagingDir = Path.Combine(_profileRoot, mod.StagingDir);
-            var uninstallScript = ModScriptService.FindScript(stagingDir, InstallAction.Uninstall);
-            if (uninstallScript is not null
-                && !string.IsNullOrWhiteSpace(gamePath)
-                && !string.IsNullOrWhiteSpace(_overlayRoot))
-            {
-                var ctx = new InstallContext
-                {
-                    Action = InstallAction.Uninstall,
-                    ModId = mod.RemoteId ?? 0,
-                    ModTitle = mod.Title,
-                    ModVersion = mod.Version ?? "1.0.0",
-                    GamePath = gamePath,
-                    OverlayDir = _overlayRoot,
-                    StagingDir = stagingDir,
-                    GameRunning = GameProcessService.IsRunning(gamePath),
-                };
-                _scriptService.Run(uninstallScript, ctx);
-            }
-
-            try
-            {
-                if (Directory.Exists(stagingDir))
-                    Directory.Delete(stagingDir, recursive: true);
-            }
-            catch
-            {
-                // best effort
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(_overlayRoot))
-        {
-            foreach (var rel in mod.InstalledFiles)
-            {
-                if (string.IsNullOrWhiteSpace(rel))
-                    continue;
-
-                var full = Path.Combine(_overlayRoot, rel.Replace('/', Path.DirectorySeparatorChar));
-                try
-                {
-                    if (File.Exists(full))
-                        File.Delete(full);
-                }
-                catch
-                {
-                    // best effort
-                }
-            }
-        }
-    }
-
-    private InstalledModsManifest LoadManifest()
-    {
-        if (string.IsNullOrWhiteSpace(_manifestPath) || !File.Exists(_manifestPath))
-            return new InstalledModsManifest();
-
+        var full = Path.Combine(_overlayRoot,
+            relativePath.Replace('/', Path.DirectorySeparatorChar));
         try
         {
-            var json = File.ReadAllText(_manifestPath);
-            var manifest = JsonSerializer.Deserialize<InstalledModsManifest>(json, JsonOptions)
-                           ?? new InstalledModsManifest();
-
-            foreach (var mod in manifest.Mods)
-            {
-                if (string.IsNullOrWhiteSpace(mod.RelativePath) && !string.IsNullOrWhiteSpace(mod.FileName))
-                    mod.RelativePath = mod.FileName;
-            }
-
-            return manifest;
+            if (File.Exists(full))
+                File.Delete(full);
         }
         catch
         {
-            return new InstalledModsManifest();
+            // best effort: a locked file should not block the rest of the uninstall.
+        }
+    }
+
+    private static InstalledMod? LoadManifestFile(string path)
+    {
+        if (!File.Exists(path))
+            return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize<InstalledMod>(File.ReadAllText(path), JsonOptions);
+        }
+        catch
+        {
+            return null;
         }
     }
 }

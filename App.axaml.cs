@@ -110,11 +110,10 @@ public partial class App : Application
         var session = new AuthSessionService(api, settingsService, settings);
 
         var imageService = new RemoteImageService(api.SharedHttpClient);
-        var scriptService = new ModScriptService();
-        var installedModsService = new InstalledModsService(scriptService);
+        var installedModsService = new InstalledModsService();
         var active = profileService.GetActive();
         installedModsService.UseProfile(active.Id);
-        var downloadService = new ModDownloadService(scriptService, installedModsService);
+        var downloadService = new ModDownloadService(installedModsService);
 
         mainWindow.DataContext = new MainViewModel(
             settingsService,
