@@ -121,6 +121,8 @@
       "InstalledCount": "{0} mods installed",
       "InstalledRemoved": "Removed mod: {0}",
       "GameRunningToggleBlocked": "The game is running. Close it first.",
+      "GameRunningCloseBlocked": "The game is running. Please close the game before exiting the application.",
+      "GameRunningDeleteBlocked": "The game is running. Please close the game before removing mods.",
       "LaunchFailed": "Failed to launch game: {0}",
       "LaunchStarted": "Launching Unturned…",
       "ProfileSwitched": "Switched to profile: {0}",

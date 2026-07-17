@@ -514,7 +514,8 @@
                                                         VerticalAlignment="Center"
                                                         Margin="6,0,0,0"
                                                         Command="{Binding #MainView.((vm:MainViewModel)DataContext).RemoveInstalledModCommand}"
-                                                        CommandParameter="{Binding}">
+                                                        CommandParameter="{Binding}"
+                                                        IsEnabled="{Binding !#MainView.((vm:MainViewModel)DataContext).IsGameRunning}">
                                                     <LucideIcon Kind="Trash2" Size="16" />
                                                 </Button>
                                             </Grid>

@@ -121,6 +121,8 @@
       "InstalledCount": "已安装 {0} 个模组",
       "InstalledRemoved": "已移除模组：{0}",
       "GameRunningToggleBlocked": "游戏正在运行，请先关闭游戏",
+      "GameRunningCloseBlocked": "游戏正在运行，请先关闭游戏再退出程序。",
+      "GameRunningDeleteBlocked": "游戏正在运行，请先关闭游戏再移除模组。",
       "LaunchFailed": "启动游戏失败：{0}",
       "LaunchStarted": "正在启动 Unturned…",
       "ProfileSwitched": "已切换档案：{0}",

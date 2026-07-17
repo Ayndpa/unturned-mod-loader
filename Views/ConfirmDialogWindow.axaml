@@ -46,7 +46,8 @@
                         Spacing="8">
                 <Button Classes="ghost"
                         Content="{Binding CancelText}"
-                        Command="{Binding CancelCommand}" />
+                        Command="{Binding CancelCommand}"
+                        IsVisible="{Binding CancelText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 <Button Classes="primary"
                         Content="{Binding ConfirmText}"
                         Command="{Binding ConfirmCommand}" />

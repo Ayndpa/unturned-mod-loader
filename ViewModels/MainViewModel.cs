@@ -256,10 +256,22 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void RemoveInstalledMod(InstalledModItemViewModel? mod)
+    private async Task RemoveInstalledModAsync(InstalledModItemViewModel? mod)
     {
         if (mod is null || mod.RemoteId is null)
             return;
+
+        if (CheckIfGameIsRunning())
+        {
+            await DialogService.ConfirmAsync(
+                _owner,
+                L.Get(I18n.Common.Confirm),
+                L.Get(I18n.Main.GameRunningDeleteBlocked),
+                confirmText: L.Get(I18n.Common.Confirm),
+                cancelText: ""
+            );
+            return;
+        }
 
         if (!_installedModsService.Remove(mod.RemoteId.Value))
             return;
@@ -770,6 +782,13 @@ public partial class MainViewModel : ViewModelBase
 
         if (IsInstalledPage && !IsLoading)
             UpdateStatus();
+    }
+
+    public char VfsDriveLetter => _vfs.DriveLetter;
+
+    public bool CheckIfGameIsRunning()
+    {
+        return IsGameRunning || GameProcessService.IsRunning(GamePath, _vfs.DriveLetter);
     }
 
     private bool MatchesInstalledSearch(InstalledMod mod)

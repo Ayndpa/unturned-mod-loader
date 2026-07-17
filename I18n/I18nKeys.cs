@@ -152,6 +152,8 @@ public static class Main
     public const string InstalledCount = "Localization.Main.InstalledCount";
     public const string InstalledRemoved = "Localization.Main.InstalledRemoved";
     public const string GameRunningToggleBlocked = "Localization.Main.GameRunningToggleBlocked";
+    public const string GameRunningCloseBlocked = "Localization.Main.GameRunningCloseBlocked";
+    public const string GameRunningDeleteBlocked = "Localization.Main.GameRunningDeleteBlocked";
     public const string LaunchFailed = "Localization.Main.LaunchFailed";
     public const string LaunchStarted = "Localization.Main.LaunchStarted";
     public const string ProfileSwitched = "Localization.Main.ProfileSwitched";
