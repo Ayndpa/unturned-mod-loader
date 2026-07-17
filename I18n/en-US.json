@@ -180,7 +180,18 @@
       "ApiProviderInvalid": "Invalid API source.",
       "LocalApiRequired": "Please enter the local API URL.",
       "CloudApiRequired": "Cloud API URL is required when using the cloud source.",
-      "ApiSaved": "Saved. Restart the app for API connection changes to take effect."
+      "ApiSaved": "Saved. Restart the app for API connection changes to take effect.",
+      "AboutSection": "About & Updates",
+      "AppVersionTitle": "App Version",
+      "AppVersionDesc": "Currently installed version: {0}",
+      "CheckingUpdates": "Checking for updates…",
+      "CheckUpdatesFailed": "Failed to check for updates. Please try again later.",
+      "NewVersionAvailable": "New version available: {0}",
+      "IsLatestVersion": "You are running the latest version.",
+      "UpdateDialogTitle": "New Version Available",
+      "UpdateDialogMessage": "A new version {0} is available. Would you like to go to GitHub to download and install it?\n\nChangelog:\n{1}",
+      "GoToDownload": "Go to Download",
+      "CheckUpdates": "Check for Updates"
     },
     "WinFsp": {
       "Title": "WinFsp file system driver",

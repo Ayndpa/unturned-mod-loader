@@ -254,6 +254,17 @@ public static class Settings
     public const string LocalApiRequired = "Localization.Settings.LocalApiRequired";
     public const string CloudApiRequired = "Localization.Settings.CloudApiRequired";
     public const string ApiSaved = "Localization.Settings.ApiSaved";
+    public const string AboutSection = "Localization.Settings.AboutSection";
+    public const string AppVersionTitle = "Localization.Settings.AppVersionTitle";
+    public const string AppVersionDesc = "Localization.Settings.AppVersionDesc";
+    public const string CheckingUpdates = "Localization.Settings.CheckingUpdates";
+    public const string CheckUpdatesFailed = "Localization.Settings.CheckUpdatesFailed";
+    public const string NewVersionAvailable = "Localization.Settings.NewVersionAvailable";
+    public const string IsLatestVersion = "Localization.Settings.IsLatestVersion";
+    public const string UpdateDialogTitle = "Localization.Settings.UpdateDialogTitle";
+    public const string UpdateDialogMessage = "Localization.Settings.UpdateDialogMessage";
+    public const string GoToDownload = "Localization.Settings.GoToDownload";
+    public const string CheckUpdates = "Localization.Settings.CheckUpdates";
 }
 
 public static class GamePathKeys

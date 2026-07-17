@@ -84,6 +84,15 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     private string _mountStatusText = "";
 
+    [ObservableProperty]
+    private string _updateStatusText = "";
+
+    [ObservableProperty]
+    private bool _isCheckingForUpdates;
+
+    [ObservableProperty]
+    private string _currentVersionText = "";
+
     public bool IsLoggedIn => _settings.IsLoggedIn;
     public IReadOnlyList<string> LocaleOptions { get; } = ["zh", "en"];
     public bool IsZhLocaleSelected => SelectedLocale == "zh";
@@ -95,6 +104,7 @@ public partial class SettingsViewModel : ViewModelBase
     public bool IsProfilesSection => SelectedSection == "profiles";
     public bool IsAccountSection => SelectedSection == "account";
     public bool IsAppearanceSection => SelectedSection == "appearance";
+    public bool IsAboutSection => SelectedSection == "about";
 
     public ObservableCollection<ProfileItemViewModel> Profiles { get; } = [];
 
@@ -125,6 +135,7 @@ public partial class SettingsViewModel : ViewModelBase
             : settings.Locale;
         _selectedTheme = ThemeService.NormalizePreference(settings.Theme);
         _newProfileName = L.Get(ProfileKeys.NewName);
+        _currentVersionText = L.Get(I18n.Settings.AppVersionDesc, typeof(SettingsViewModel).Assembly.GetName().Version?.ToString(3) ?? "1.0.0");
 
         if (!string.IsNullOrWhiteSpace(initialSection))
             _selectedSection = initialSection;
@@ -573,6 +584,67 @@ public partial class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsProfilesSection));
         OnPropertyChanged(nameof(IsAccountSection));
         OnPropertyChanged(nameof(IsAppearanceSection));
+        OnPropertyChanged(nameof(IsAboutSection));
+    }
+
+    [RelayCommand]
+    private async Task CheckForUpdatesAsync()
+    {
+        if (IsCheckingForUpdates) return;
+
+        IsCheckingForUpdates = true;
+        UpdateStatusText = L.Get(I18n.Settings.CheckingUpdates);
+
+        try
+        {
+            var release = await UpdateService.CheckForUpdatesAsync();
+            if (release == null)
+            {
+                UpdateStatusText = L.Get(I18n.Settings.CheckUpdatesFailed);
+                return;
+            }
+
+            if (UpdateService.IsNewerVersion(release.TagName, out var latestVersion))
+            {
+                UpdateStatusText = L.Get(I18n.Settings.NewVersionAvailable, release.TagName);
+
+                var title = L.Get(I18n.Settings.UpdateDialogTitle);
+                var message = L.Get(I18n.Settings.UpdateDialogMessage, release.TagName, release.Body);
+                var confirm = await DialogService.ConfirmAsync(
+                    _owner,
+                    title,
+                    message,
+                    confirmText: L.Get(I18n.Settings.GoToDownload),
+                    cancelText: L.Get(I18n.Common.Cancel)
+                );
+
+                if (confirm)
+                {
+                    var url = release.HtmlUrl;
+                    if (!string.IsNullOrWhiteSpace(url))
+                    {
+                        var psi = new ProcessStartInfo
+                        {
+                            FileName = url,
+                            UseShellExecute = true
+                        };
+                        Process.Start(psi);
+                    }
+                }
+            }
+            else
+            {
+                UpdateStatusText = L.Get(I18n.Settings.IsLatestVersion);
+            }
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText = L.Get(I18n.Settings.CheckUpdatesFailed) + ": " + ex.Message;
+        }
+        finally
+        {
+            IsCheckingForUpdates = false;
+        }
     }
 
     partial void OnGamePathChanged(string value)
@@ -589,6 +661,7 @@ public partial class SettingsViewModel : ViewModelBase
         if (!string.IsNullOrWhiteSpace(_currentRole))
             RoleLabel = MapRoleLabel(_currentRole);
         RefreshProfiles();
+        CurrentVersionText = L.Get(I18n.Settings.AppVersionDesc, typeof(SettingsViewModel).Assembly.GetName().Version?.ToString(3) ?? "1.0.0");
     }
 
     [SupportedOSPlatform("windows")]

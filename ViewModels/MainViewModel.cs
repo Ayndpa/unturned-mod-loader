@@ -479,6 +479,48 @@ public partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(Username));
         await LoadCategoriesAsync();
         await LoadModsAsync();
+
+        // Background update check on startup
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var release = await UpdateService.CheckForUpdatesAsync();
+                if (release != null && UpdateService.IsNewerVersion(release.TagName, out _))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+                    {
+                        var title = L.Get(I18n.Settings.UpdateDialogTitle);
+                        var message = L.Get(I18n.Settings.UpdateDialogMessage, release.TagName, release.Body);
+                        var confirm = await DialogService.ConfirmAsync(
+                            _owner,
+                            title,
+                            message,
+                            confirmText: L.Get(I18n.Settings.GoToDownload),
+                            cancelText: L.Get(I18n.Common.Cancel)
+                        );
+
+                        if (confirm)
+                        {
+                            var url = release.HtmlUrl;
+                            if (!string.IsNullOrWhiteSpace(url))
+                            {
+                                var psi = new System.Diagnostics.ProcessStartInfo
+                                {
+                                    FileName = url,
+                                    UseShellExecute = true
+                                };
+                                System.Diagnostics.Process.Start(psi);
+                            }
+                        }
+                    });
+                }
+            }
+            catch
+            {
+                // Ignore startup check errors
+            }
+        });
     }
 
     private async Task LoadCategoriesAsync(CancellationToken cancellationToken = default)

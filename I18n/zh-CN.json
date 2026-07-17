@@ -180,7 +180,18 @@
       "ApiProviderInvalid": "API 来源无效。",
       "LocalApiRequired": "请填写本地 API 地址。",
       "CloudApiRequired": "使用云端 API 时需填写云端地址。",
-      "ApiSaved": "已保存。重新启动应用后 API 连接设置才会生效。"
+      "ApiSaved": "已保存。重新启动应用后 API 连接设置才会生效。",
+      "AboutSection": "关于与更新",
+      "AppVersionTitle": "程序版本",
+      "AppVersionDesc": "当前安装的版本：{0}",
+      "CheckingUpdates": "正在检查更新…",
+      "CheckUpdatesFailed": "检查更新失败，请稍后重试。",
+      "NewVersionAvailable": "检测到新版本：{0}",
+      "IsLatestVersion": "当前已是最新版本。",
+      "UpdateDialogTitle": "检测到新版本",
+      "UpdateDialogMessage": "发现新版本 {0}，是否前往 GitHub 下载安装？\n\n更新日志：\n{1}",
+      "GoToDownload": "前往下载",
+      "CheckUpdates": "检查更新"
     },
     "WinFsp": {
       "Title": "WinFsp 文件系统驱动",
